@@ -1,6 +1,8 @@
 import { COOKIE_NAME } from "@shared/const";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
+import { conversationRouter } from "./routers/conversations";
+import { beneficiaryRouter } from "./routers/beneficiary";
 import { publicProcedure, protectedProcedure, router } from "./_core/trpc";
 import { z } from "zod";
 import { createMemory, getMemoriesByUserId, createReasoningPattern, getReasoningPatternsByUserId, createCoreValue, getCoreValuesByUserId, createBeneficiary, getBeneficiariesByUserId, getOrCreateProfile } from "./db";
@@ -10,6 +12,8 @@ import { interviewRouter } from "./routers/interview";
 export const appRouter = router({
     // if you need to use socket.io, read and register route in server/_core/index.ts, all api should start with '/api/' so that the gateway can route correctly
   system: systemRouter,
+  conversations: conversationRouter,
+  beneficiary: beneficiaryRouter,
   auth: router({
     me: publicProcedure.query(opts => opts.ctx.user),
     logout: publicProcedure.mutation(({ ctx }) => {
@@ -87,21 +91,7 @@ export const appRouter = router({
       }),
   }),
 
-  beneficiary: router({
-    create: protectedProcedure
-      .input(z.object({
-        name: z.string().min(1),
-        relationship: z.string().optional(),
-        email: z.string().email().optional(),
-        accessLevel: z.enum(['full', 'restricted', 'legacy_only']).optional(),
-      }))
-      .mutation(async ({ ctx, input }) => {
-        return createBeneficiary(ctx.user.id, input);
-      }),
-    list: protectedProcedure.query(({ ctx }) =>
-      getBeneficiariesByUserId(ctx.user.id)
-    ),
-  }),
+
 
   persona: personaRouter,
   interview: interviewRouter,

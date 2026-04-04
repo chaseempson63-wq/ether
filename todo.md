@@ -16,13 +16,13 @@
 - [x] Core values input interface
 - [x] Memory tagging and categorization
 
-### Database Schema & Vector Search
+### Database Schema & Vector Search (CRITICAL FIXES)
 - [x] Profiles table with user metadata
 - [x] Memories table with vector embeddings
 - [x] Reasoning patterns table with decision logic
 - [x] Core values table with belief statements
 - [x] Beneficiaries table for inheritance management
-- [ ] pgvector integration for semantic search
+- [x] Vector search with hybrid semantic + keyword matching (PRIORITY 2 - FIXED: semantic retrieval)
 - [x] Migration scripts for schema deployment
 
 ### AI Persona Engine
@@ -33,9 +33,9 @@
 - [x] Tone and style mirroring based on stored patterns
 - [x] LLM integration with OpenAI GPT-4o
 
-### Chat Interface
+### Chat Interface (CRITICAL FIXES)
 - [x] RAG-based AI chat component
-- [x] Message history display
+- [x] Message history persistence (PRIORITY 1 - FIXED: conversations saved to database)
 - [ ] Streaming response support
 - [x] Truthfulness tag display on responses
 - [x] "Second Mind" conversation mode (user talking to themselves)
@@ -56,10 +56,10 @@
 - [x] Memory statistics (count, sources, dates)
 - [x] Quick access to recent memories
 
-### Beneficiary Management
+### Beneficiary Management (CRITICAL FIXES)
 - [x] Beneficiary profile creation
 - [x] Access level assignment (full/restricted/legacy_only)
-- [ ] Memory-specific access controls
+- [x] Access control enforcement in backend (PRIORITY 3 - FIXED: authorization in all procedures)
 - [ ] Beneficiary invitation system
 
 ### Legacy Mode

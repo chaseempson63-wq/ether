@@ -129,3 +129,35 @@ export const interviewSessions = mysqlTable("interviewSessions", {
 
 export type InterviewSession = typeof interviewSessions.$inferSelect;
 export type InsertInterviewSession = typeof interviewSessions.$inferInsert;
+
+/**
+ * Conversations table: Tracks chat sessions between user and their Digital Mind
+ */
+export const conversations = mysqlTable("conversations", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(),
+  title: varchar("title", { length: 255 }), // Auto-generated from first message
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type Conversation = typeof conversations.$inferSelect;
+export type InsertConversation = typeof conversations.$inferInsert;
+
+/**
+ * Chat messages table: Individual messages in a conversation
+ */
+export const chatMessages = mysqlTable("chatMessages", {
+  id: int("id").autoincrement().primaryKey(),
+  conversationId: int("conversationId").notNull(),
+  userId: int("userId").notNull(),
+  role: mysqlEnum("role", ["user", "assistant"]).notNull(), // Who sent the message
+  content: text("content").notNull(),
+  truthfulnessTag: mysqlEnum("truthfulnessTag", ["Known Memory", "Likely Inference", "Speculation"]),
+  sourceMemories: json("sourceMemories"), // Array of memory IDs cited
+  confidence: float("confidence"), // 0.0 to 1.0
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type ChatMessage = typeof chatMessages.$inferSelect;
+export type InsertChatMessage = typeof chatMessages.$inferInsert;

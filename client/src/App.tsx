@@ -9,6 +9,7 @@ import DailyReflection from "./pages/DailyReflection";
 import PersonaChat from "./pages/PersonaChat";
 import Dashboard from "./pages/Dashboard";
 import InterviewMode from "./pages/InterviewMode";
+import BeneficiaryManagement from "./pages/BeneficiaryManagement";
 
 function Router() {
   // make sure to consider if you need authentication for certain routes
@@ -19,6 +20,7 @@ function Router() {
       <Route path="/reflection" component={DailyReflection} />
       <Route path="/interview" component={InterviewMode} />
       <Route path="/chat" component={PersonaChat} />
+      <Route path="/beneficiaries" component={BeneficiaryManagement} />
       <Route path="/404" component={NotFound} />
       {/* Final fallback route */}
       <Route component={NotFound} />

@@ -57,13 +57,13 @@
 - [x] Quick access to recent memories
 
 ### Beneficiary Management
-- [ ] Beneficiary profile creation
-- [ ] Access level assignment (full/restricted/legacy_only)
+- [x] Beneficiary profile creation
+- [x] Access level assignment (full/restricted/legacy_only)
 - [ ] Memory-specific access controls
 - [ ] Beneficiary invitation system
 
 ### Legacy Mode
-- [ ] Toggle to preview AI responses as if for beneficiaries
+- [x] Toggle to preview AI responses as if for beneficiaries
 - [ ] Restricted memory filtering
 - [ ] Legacy-specific tone adjustments
 - [ ] Beneficiary-facing interface preview
@@ -71,20 +71,20 @@
 ### Voice & Media
 - [ ] Voice memo recording interface
 - [ ] Audio file upload
-- [ ] Transcription processing
-- [ ] Transcript storage and search
+- [x] Transcription processing (via Whisper API)
+- [x] Transcript storage and search
 
 ### Testing & Quality
 - [ ] Unit tests for core procedures (vitest)
 - [ ] RAG retrieval accuracy tests
 - [ ] Persona Engine response tests
-- [ ] End-to-end flow testing
+- [x] End-to-end flow testing
 - [ ] Voice transcription integration tests
 
 ### Deployment & Documentation
-- [ ] Environment variables configuration
-- [ ] Database migration documentation
-- [ ] API documentation
+- [x] Environment variables configuration
+- [x] Database migration documentation
+- [x] API documentation (tRPC procedures)
 - [ ] User onboarding guide
 
 ## Phase 2 Features (Post-MVP)

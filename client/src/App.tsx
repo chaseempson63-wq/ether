@@ -8,6 +8,7 @@ import Home from "./pages/Home";
 import DailyReflection from "./pages/DailyReflection";
 import PersonaChat from "./pages/PersonaChat";
 import Dashboard from "./pages/Dashboard";
+import InterviewMode from "./pages/InterviewMode";
 
 function Router() {
   // make sure to consider if you need authentication for certain routes
@@ -16,6 +17,7 @@ function Router() {
       <Route path="/" component={Home} />
       <Route path="/dashboard" component={Dashboard} />
       <Route path="/reflection" component={DailyReflection} />
+      <Route path="/interview" component={InterviewMode} />
       <Route path="/chat" component={PersonaChat} />
       <Route path="/404" component={NotFound} />
       {/* Final fallback route */}

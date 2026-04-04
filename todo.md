@@ -42,11 +42,11 @@
 - [x] Citation of source memories in responses
 
 ### Interview Mode
-- [ ] AI-generated interview prompts
-- [ ] Question categories (values, decisions, lessons, beliefs)
-- [ ] Conversational interview flow
+- [x] AI-generated interview prompts
+- [x] Question categories (values, decisions, lessons, beliefs)
+- [x] Conversational interview flow
 - [ ] Auto-capture of responses as memories
-- [ ] Interview session history
+- [x] Interview session history
 
 ### Dashboard
 - [x] Memory timeline visualization

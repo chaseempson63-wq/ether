@@ -1,11 +1,12 @@
-import { generateEmbedding } from "./embeddingService";
+import { generateEmbedding as _generateEmbedding } from "./embeddingService";
 
 /**
  * Vector Search Utility
  * Implements semantic search using OpenAI embeddings and cosine similarity
  */
 
-// Embedding generation is now handled by embeddingService.ts
+// Re-export generateEmbedding so any file that imports from vectorSearch still works
+export { _generateEmbedding as generateEmbedding };
 
 /**
  * Calculate cosine similarity between two vectors

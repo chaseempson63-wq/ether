@@ -102,3 +102,27 @@
 - Voice transcription limited to 16MB files
 - Database timestamps stored as UTC
 - All responses must maintain Chase's core values and reasoning patterns
+
+
+## Halliday Question Bank Implementation
+
+### Question Bank Structure
+- [x] Parse all 150+ questions from Halliday framework
+- [x] Create questions table in database with category, difficulty, and metadata
+- [x] Implement 5-category weighting system (Voice 20%, Memory 20%, Reasoning 25%, Values 20%, Emotional 15%)
+- [x] Add question sequencing logic (adaptive based on user progress)
+- [x] Implement accuracy threshold system (20%, 40%, 60%, 80%, 100%)
+
+### Interview Mode Enhancement
+- [x] Replace generic prompts with Halliday questions
+- [x] Implement category-based interview flow
+- [x] Add question progress tracking per category
+- [x] Implement adaptive question selection based on answers
+- [x] Auto-capture interview responses as memories
+- [x] Add "health bar" visualization showing completion across categories
+
+### Quality & Accuracy
+- [x] Track accuracy metrics per category
+- [x] Implement specificity scoring (generic vs specific answers)
+- [x] Add feedback system for improving answer quality
+- [x] Create accuracy threshold indicators

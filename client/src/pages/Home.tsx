@@ -1,7 +1,7 @@
 import { useAuth } from "@/_core/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Brain, BookOpen, MessageSquare } from "lucide-react";
+import { Brain, BookOpen, MessageSquare, Zap } from "lucide-react";
 import { getLoginUrl } from "@/const";
 import { useLocation } from "wouter";
 
@@ -33,6 +33,22 @@ export default function Home() {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
+            <Card
+              className="bg-slate-800 border-slate-700 cursor-pointer hover:bg-slate-700 transition border-2 border-blue-500"
+              onClick={() => setLocation("/halliday")}
+            >
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-white">
+                  <Zap className="h-5 w-5 text-blue-400" />
+                  Halliday Interview
+                </CardTitle>
+                <CardDescription className="text-slate-400">Build your Digital Mind</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <p className="text-slate-300 text-sm">Answer 140+ questions across 5 categories to teach the AI how you think and feel.</p>
+              </CardContent>
+            </Card>
+
             <Card
               className="bg-slate-800 border-slate-700 cursor-pointer hover:bg-slate-700 transition"
               onClick={() => setLocation("/dashboard")}

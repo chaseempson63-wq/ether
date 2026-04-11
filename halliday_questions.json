@@ -1,0 +1,756 @@
+{
+  "categories": [
+    {
+      "id": "voice_language",
+      "name": "Voice & Language",
+      "weight": 0.2,
+      "description": "Sounds like them - how they speak and communicate",
+      "sections": [
+        {
+          "id": "natural_speech",
+          "name": "Natural Speech Patterns",
+          "questions": [
+            {
+              "id": "Q001",
+              "text": "How would your closest friend describe the way you talk? Are you loud or quiet, fast or slow, direct or roundabout?"
+            },
+            {
+              "id": "Q002",
+              "text": "What words or phrases do you say all the time without realising it? Think about things people have pointed out or mimicked about how you speak."
+            },
+            {
+              "id": "Q003",
+              "text": "Do you swear? If so, how often and in what situations?"
+            },
+            {
+              "id": "Q004",
+              "text": "Are you more formal in some situations and casual in others? Give an example of each."
+            },
+            {
+              "id": "Q005",
+              "text": "How do you open a conversation with someone you know well? What do you usually say first?"
+            },
+            {
+              "id": "Q006",
+              "text": "How do you end a conversation? Do you trail off, wrap it up cleanly, or something else?"
+            },
+            {
+              "id": "Q007",
+              "text": "Do you use humour a lot? What kind — sarcasm, self-deprecation, observational, dark?"
+            },
+            {
+              "id": "Q008",
+              "text": "Are you someone who thinks out loud or do you process quietly before speaking?"
+            },
+            {
+              "id": "Q009",
+              "text": "How do you speak when you're explaining something complicated to someone who doesn't understand it?"
+            },
+            {
+              "id": "Q010",
+              "text": "What do you sound like when you're excited about something?"
+            }
+          ]
+        },
+        {
+          "id": "written_communication",
+          "name": "Written Communication Style",
+          "questions": [
+            {
+              "id": "Q011",
+              "text": "How do you write text messages? Long or short? Proper punctuation or not?"
+            },
+            {
+              "id": "Q012",
+              "text": "Do you use emojis? Which ones and in what context?"
+            },
+            {
+              "id": "Q013",
+              "text": "How do you write emails? Formal opener and sign off or straight to the point?"
+            },
+            {
+              "id": "Q014",
+              "text": "When you're writing to someone you know well vs a stranger, how does your style change?"
+            },
+            {
+              "id": "Q015",
+              "text": "Are you someone who edits what you write before sending or do you fire and forget?"
+            },
+            {
+              "id": "Q016",
+              "text": "What do your voice notes sound like? Do you ramble or stay on point?"
+            },
+            {
+              "id": "Q017",
+              "text": "If you had to describe your communication style in three words, what would they be?"
+            }
+          ]
+        },
+        {
+          "id": "argue_persuade",
+          "name": "How You Argue and Persuade",
+          "questions": [
+            {
+              "id": "Q018",
+              "text": "When you disagree with someone, how do you handle it? Do you push back immediately or think before responding?"
+            },
+            {
+              "id": "Q019",
+              "text": "What does it look like when you're trying to convince someone of something? Walk through how you'd approach it."
+            },
+            {
+              "id": "Q020",
+              "text": "Do you back down in arguments or hold your ground? What determines which?"
+            },
+            {
+              "id": "Q021",
+              "text": "Are you someone who needs the last word or are you fine letting things go?"
+            },
+            {
+              "id": "Q022",
+              "text": "How do you respond when someone gives you feedback you disagree with?"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "memory_life_events",
+      "name": "Memory & Life Events",
+      "weight": 0.2,
+      "description": "Knows their story - the events and relationships that shaped them",
+      "sections": [
+        {
+          "id": "childhood_origins",
+          "name": "Childhood & Origins",
+          "questions": [
+            {
+              "id": "Q023",
+              "text": "Where did you grow up? Describe what it was like — the place, the feeling, the people around you."
+            },
+            {
+              "id": "Q024",
+              "text": "What is your earliest memory?"
+            },
+            {
+              "id": "Q025",
+              "text": "What was your family like when you were growing up? Parents, siblings, extended family."
+            },
+            {
+              "id": "Q026",
+              "text": "Were you happy as a kid? What made you happy and what didn't?"
+            },
+            {
+              "id": "Q027",
+              "text": "What did you want to be when you grew up? Did that change over time and why?"
+            },
+            {
+              "id": "Q028",
+              "text": "What is the most important thing your childhood taught you that you still carry today?"
+            },
+            {
+              "id": "Q029",
+              "text": "Was there a defining moment in your childhood that changed the direction of your life?"
+            },
+            {
+              "id": "Q030",
+              "text": "What was school like for you? Did you enjoy it, struggle, stand out, blend in?"
+            },
+            {
+              "id": "Q031",
+              "text": "Who was the most influential person in your childhood and why?"
+            },
+            {
+              "id": "Q032",
+              "text": "What was your relationship with money growing up? Was it tight, comfortable, a source of stress?"
+            }
+          ]
+        },
+        {
+          "id": "relationships",
+          "name": "Relationships",
+          "questions": [
+            {
+              "id": "Q033",
+              "text": "Who are the most important people in your life right now and why?"
+            },
+            {
+              "id": "Q034",
+              "text": "How did you meet the person you're closest to? What made that relationship stick?"
+            },
+            {
+              "id": "Q035",
+              "text": "Have you ever lost someone important — through death, falling out, or distance? What happened?"
+            },
+            {
+              "id": "Q036",
+              "text": "What does a good friendship look like to you? What do you give and what do you expect back?"
+            },
+            {
+              "id": "Q037",
+              "text": "Have you ever been betrayed by someone you trusted? What happened and how did it change you?"
+            },
+            {
+              "id": "Q038",
+              "text": "What's your relationship with your parents like now? Has it changed from when you were younger?"
+            },
+            {
+              "id": "Q039",
+              "text": "If you're in a romantic relationship — how did it start, what makes it work, what's hard about it?"
+            },
+            {
+              "id": "Q040",
+              "text": "What kind of people do you naturally attract into your life? What does that say about you?"
+            },
+            {
+              "id": "Q041",
+              "text": "Who do you go to when things are really hard? Why that person?"
+            }
+          ]
+        },
+        {
+          "id": "defining_moments",
+          "name": "Defining Life Moments",
+          "questions": [
+            {
+              "id": "Q042",
+              "text": "What is the single hardest thing you have ever been through? What happened and how did you get through it?"
+            },
+            {
+              "id": "Q043",
+              "text": "What is the best decision you have ever made? Why was it the right one?"
+            },
+            {
+              "id": "Q044",
+              "text": "What is the worst decision you have ever made? What did it cost you?"
+            },
+            {
+              "id": "Q045",
+              "text": "Have you ever done something that genuinely scared you? What was it and why did you do it anyway?"
+            },
+            {
+              "id": "Q046",
+              "text": "What is a moment in your life you are genuinely proud of — not because of what others thought, but because of what it meant to you?"
+            },
+            {
+              "id": "Q047",
+              "text": "What is something you deeply regret? Not just a mistake but something that still sits with you."
+            },
+            {
+              "id": "Q048",
+              "text": "What is the biggest risk you have ever taken? How did it turn out?"
+            },
+            {
+              "id": "Q049",
+              "text": "Has there been a moment where your life completely changed direction? What triggered it?"
+            },
+            {
+              "id": "Q050",
+              "text": "What is something you have experienced that most people haven't? What did it teach you?"
+            }
+          ]
+        },
+        {
+          "id": "work_career",
+          "name": "Work & Career",
+          "questions": [
+            {
+              "id": "Q051",
+              "text": "Walk me through your work history. What have you done, what did you love, what did you hate?"
+            },
+            {
+              "id": "Q052",
+              "text": "What have you built or created that you're most proud of?"
+            },
+            {
+              "id": "Q053",
+              "text": "Have you ever failed at something professionally? What happened and what did it cost you?"
+            },
+            {
+              "id": "Q054",
+              "text": "What has work taught you about people that nothing else could have?"
+            },
+            {
+              "id": "Q055",
+              "text": "What does success in your work actually look like to you — not the generic answer, your real one?"
+            },
+            {
+              "id": "Q056",
+              "text": "Have you ever had a mentor or someone who significantly influenced how you work? What did they teach you?"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "reasoning_decisions",
+      "name": "Reasoning & Decisions",
+      "weight": 0.25,
+      "description": "Thinks like them - the logic and frameworks behind decisions",
+      "sections": [
+        {
+          "id": "how_decide",
+          "name": "How You Make Decisions",
+          "questions": [
+            {
+              "id": "Q057",
+              "text": "When you face a big decision, what is your process? Do you make lists, trust your gut, talk to people, sleep on it?"
+            },
+            {
+              "id": "Q058",
+              "text": "How long do you typically take to make a major decision? Are you fast or slow and why?"
+            },
+            {
+              "id": "Q059",
+              "text": "Do you trust data and logic more, or gut instinct? Give an example of each guiding you."
+            },
+            {
+              "id": "Q060",
+              "text": "What does it feel like in your body when you know a decision is right? And when it's wrong?"
+            },
+            {
+              "id": "Q061",
+              "text": "What is the biggest mistake you make repeatedly when making decisions? What keeps pulling you toward it?"
+            },
+            {
+              "id": "Q062",
+              "text": "When you're stuck on a decision, what breaks the deadlock?"
+            },
+            {
+              "id": "Q063",
+              "text": "How do other people's opinions factor into your decisions? Do you seek them out or prefer to decide alone?"
+            },
+            {
+              "id": "Q064",
+              "text": "Have you ever made a decision purely on logic that felt wrong? Or purely on gut that turned out to be right?"
+            }
+          ]
+        },
+        {
+          "id": "risk_uncertainty",
+          "name": "Risk & Uncertainty",
+          "questions": [
+            {
+              "id": "Q065",
+              "text": "How do you think about risk? Are you someone who leans in or avoids it?"
+            },
+            {
+              "id": "Q066",
+              "text": "What is the riskiest thing you have ever done deliberately? What was your thinking going in?"
+            },
+            {
+              "id": "Q067",
+              "text": "When is risk worth taking and when is it not? What's the line for you?"
+            },
+            {
+              "id": "Q068",
+              "text": "How do you handle uncertainty — situations where you have to act without knowing the outcome?"
+            },
+            {
+              "id": "Q069",
+              "text": "Have you ever stayed too long in a bad situation because of fear of what comes next? What eventually moved you?"
+            },
+            {
+              "id": "Q070",
+              "text": "What does failure mean to you? Is it a data point, a setback, a reflection of you as a person?"
+            }
+          ]
+        },
+        {
+          "id": "money_resources",
+          "name": "Money & Resources",
+          "questions": [
+            {
+              "id": "Q071",
+              "text": "What is your relationship with money? Is it security, freedom, a tool, a scorecard?"
+            },
+            {
+              "id": "Q072",
+              "text": "How do you decide what is worth spending money on and what isn't?"
+            },
+            {
+              "id": "Q073",
+              "text": "Have you ever lost significant money? What happened and what did it change about how you think?"
+            },
+            {
+              "id": "Q074",
+              "text": "What is your philosophy on investing — time, money, energy? How do you decide where to put resources?"
+            },
+            {
+              "id": "Q075",
+              "text": "Are you generous with money or careful with it? What drives that?"
+            },
+            {
+              "id": "Q076",
+              "text": "What would you do with unlimited money? Does your answer surprise you?"
+            }
+          ]
+        },
+        {
+          "id": "people_trust",
+          "name": "People & Trust",
+          "questions": [
+            {
+              "id": "Q077",
+              "text": "How quickly do you trust people? What do they have to do to earn it?"
+            },
+            {
+              "id": "Q078",
+              "text": "What makes you decide someone is worth your time and energy?"
+            },
+            {
+              "id": "Q079",
+              "text": "How do you spot someone who is not what they seem? What are your tells?"
+            },
+            {
+              "id": "Q080",
+              "text": "When someone lets you down, what happens? Do you give second chances, how many, under what conditions?"
+            },
+            {
+              "id": "Q081",
+              "text": "Have you ever trusted someone completely and been burned? What changed after that?"
+            },
+            {
+              "id": "Q082",
+              "text": "What do you look for when choosing who to work with or go into business with?"
+            },
+            {
+              "id": "Q083",
+              "text": "What is a non-negotiable for you in any relationship — personal or professional?"
+            }
+          ]
+        },
+        {
+          "id": "decision_logs",
+          "name": "Real Decision Logs",
+          "questions": [
+            {
+              "id": "Q084",
+              "text": "Document a major life decision you made in the last 5 years. Full context and reasoning."
+            },
+            {
+              "id": "Q085",
+              "text": "Document a business or work decision that was difficult. What were you weighing up?"
+            },
+            {
+              "id": "Q086",
+              "text": "Document a decision about a person — hiring, firing, ending a friendship, committing to a relationship."
+            },
+            {
+              "id": "Q087",
+              "text": "Document a decision you made that others thought was wrong but you believed in. What happened?"
+            },
+            {
+              "id": "Q088",
+              "text": "Document a decision you regret. Not what you'd do differently — why you made the choice you did at the time."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "values_beliefs",
+      "name": "Values & Beliefs",
+      "weight": 0.2,
+      "description": "Acts like them - the operating system of their values",
+      "sections": [
+        {
+          "id": "core_values",
+          "name": "Core Values",
+          "questions": [
+            {
+              "id": "Q089",
+              "text": "What are your three most important values in life? Not the ones that sound good — the ones you actually live by."
+            },
+            {
+              "id": "Q090",
+              "text": "For each value — give me a specific moment where you chose that value even when it cost you something."
+            },
+            {
+              "id": "Q091",
+              "text": "What value do you hold that most people around you don't? Why do you hold it anyway?"
+            },
+            {
+              "id": "Q092",
+              "text": "Is there a value you used to hold that you've changed your mind on? What changed it?"
+            },
+            {
+              "id": "Q093",
+              "text": "What is something you would never compromise on regardless of the reward?"
+            },
+            {
+              "id": "Q094",
+              "text": "What do you think is the most underrated value in the world right now? Why?"
+            }
+          ]
+        },
+        {
+          "id": "beliefs_people",
+          "name": "Beliefs About People",
+          "questions": [
+            {
+              "id": "Q095",
+              "text": "Do you think people are fundamentally good, fundamentally self-interested, or something else?"
+            },
+            {
+              "id": "Q096",
+              "text": "What do you think most people get wrong about other people?"
+            },
+            {
+              "id": "Q097",
+              "text": "What makes someone a good person in your eyes? Give a real example of someone you consider one."
+            },
+            {
+              "id": "Q098",
+              "text": "What makes someone a bad person? Where is your line?"
+            },
+            {
+              "id": "Q099",
+              "text": "Do you believe people can fundamentally change? What's your evidence for that view?"
+            },
+            {
+              "id": "Q100",
+              "text": "What kind of person do you have zero tolerance for?"
+            }
+          ]
+        },
+        {
+          "id": "beliefs_success",
+          "name": "Beliefs About Success & Work",
+          "questions": [
+            {
+              "id": "Q101",
+              "text": "What do you believe most people get wrong about becoming successful?"
+            },
+            {
+              "id": "Q102",
+              "text": "Is success mostly hard work, mostly luck, or something else? What's your honest view?"
+            },
+            {
+              "id": "Q103",
+              "text": "What does a life well-lived look like to you? Be specific."
+            },
+            {
+              "id": "Q104",
+              "text": "What do you think is the biggest waste of a human life?"
+            },
+            {
+              "id": "Q105",
+              "text": "Do you believe in work-life balance? What's your actual position not the socially acceptable one?"
+            },
+            {
+              "id": "Q106",
+              "text": "What do you think separates people who achieve what they want from people who don't?"
+            }
+          ]
+        },
+        {
+          "id": "beliefs_world",
+          "name": "Beliefs About the World",
+          "questions": [
+            {
+              "id": "Q107",
+              "text": "What do you think is the biggest problem in the world right now?"
+            },
+            {
+              "id": "Q108",
+              "text": "What gives you hope about where things are going?"
+            },
+            {
+              "id": "Q109",
+              "text": "What is a belief you hold about the world that most people in your social circle would disagree with?"
+            },
+            {
+              "id": "Q110",
+              "text": "What do you think about the role of government, authority, institutions in people's lives?"
+            },
+            {
+              "id": "Q111",
+              "text": "What is your view on money and wealth in society — is inequality a problem, a feature, or something else?"
+            },
+            {
+              "id": "Q112",
+              "text": "What do you think happens when we die? Does that belief affect how you live?"
+            }
+          ]
+        },
+        {
+          "id": "spiritual_philosophical",
+          "name": "Spiritual & Philosophical",
+          "questions": [
+            {
+              "id": "Q113",
+              "text": "Do you have a faith or spiritual practice? How does it shape how you live?"
+            },
+            {
+              "id": "Q114",
+              "text": "What is your relationship with God or a higher power — believer, sceptic, somewhere in between?"
+            },
+            {
+              "id": "Q115",
+              "text": "What philosophical idea or quote has influenced you most? Why that one?"
+            },
+            {
+              "id": "Q116",
+              "text": "What do you think the purpose of a human life is?"
+            },
+            {
+              "id": "Q117",
+              "text": "If you could pass one belief on to your children or the people who come after you, what would it be?"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "emotional_patterns",
+      "name": "Emotional Patterns",
+      "weight": 0.15,
+      "description": "Feels like them - emotional patterns that make them human",
+      "sections": [
+        {
+          "id": "handle_hard_times",
+          "name": "How You Handle Hard Times",
+          "questions": [
+            {
+              "id": "Q118",
+              "text": "What do you do when you're really struggling? Not what you should do — what do you actually do?"
+            },
+            {
+              "id": "Q119",
+              "text": "How long does it take you to bounce back from a setback? What's your process?"
+            },
+            {
+              "id": "Q120",
+              "text": "Do you tend to isolate or reach out when things are hard?"
+            },
+            {
+              "id": "Q121",
+              "text": "What has been your darkest period? How did you get through it and what did it leave behind?"
+            },
+            {
+              "id": "Q122",
+              "text": "What is the thing that can break your mood faster than anything else?"
+            },
+            {
+              "id": "Q123",
+              "text": "Have you ever felt completely lost? What did that feel like and what pulled you out?"
+            }
+          ]
+        },
+        {
+          "id": "what_drives_you",
+          "name": "What Drives You",
+          "questions": [
+            {
+              "id": "Q124",
+              "text": "What gets you out of bed in the morning on the days when nothing feels worth it?"
+            },
+            {
+              "id": "Q125",
+              "text": "What are you most afraid of? Not surface fears — the deep one underneath everything."
+            },
+            {
+              "id": "Q126",
+              "text": "What makes you feel most alive? When do you feel like the fullest version of yourself?"
+            },
+            {
+              "id": "Q127",
+              "text": "What does ambition feel like for you? Is it exciting, exhausting, both?"
+            },
+            {
+              "id": "Q128",
+              "text": "What would genuinely make you feel like your life was a success? If you achieved it, what would that feel like?"
+            },
+            {
+              "id": "Q129",
+              "text": "Is there something you want that you haven't admitted to yourself yet?"
+            }
+          ]
+        },
+        {
+          "id": "anger_frustration",
+          "name": "Anger & Frustration",
+          "questions": [
+            {
+              "id": "Q130",
+              "text": "What makes you genuinely angry? Not annoyed — angry."
+            },
+            {
+              "id": "Q131",
+              "text": "What do you do when you're angry? How does it come out?"
+            },
+            {
+              "id": "Q132",
+              "text": "Have you ever let anger make a decision for you that you regretted? What happened?"
+            },
+            {
+              "id": "Q133",
+              "text": "What is something you see in the world that genuinely makes you furious?"
+            },
+            {
+              "id": "Q134",
+              "text": "How long do you hold onto things that anger you?"
+            }
+          ]
+        },
+        {
+          "id": "joy_energy",
+          "name": "Joy & Energy",
+          "questions": [
+            {
+              "id": "Q135",
+              "text": "What genuinely makes you laugh — not polite laughing, real laughter?"
+            },
+            {
+              "id": "Q136",
+              "text": "What do you do to recharge? What actually works versus what you think should work?"
+            },
+            {
+              "id": "Q137",
+              "text": "When was the last time you felt pure joy with no complications? What was happening?"
+            },
+            {
+              "id": "Q138",
+              "text": "What are you like at your best — your peak state? Describe it specifically."
+            },
+            {
+              "id": "Q139",
+              "text": "What do the people closest to you love most about you?"
+            }
+          ]
+        },
+        {
+          "id": "love_connect",
+          "name": "How You Love & Connect",
+          "questions": [
+            {
+              "id": "Q140",
+              "text": "How do you show people you care about them? Actions, words, time, something else?"
+            },
+            {
+              "id": "Q141",
+              "text": "What does it mean to you to truly belong somewhere or with someone?"
+            },
+            {
+              "id": "Q142",
+              "text": "Have you ever loved something or someone so much that losing it changed you? What was it?"
+            },
+            {
+              "id": "Q143",
+              "text": "What kind of support do you want when you're struggling? Do people usually give you that?"
+            },
+            {
+              "id": "Q144",
+              "text": "What do you wish people understood about you that they usually don't?"
+            },
+            {
+              "id": "Q145",
+              "text": "If the people who love you most could say one thing about who you really are, what would it be?"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

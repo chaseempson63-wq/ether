@@ -5,6 +5,7 @@ import { Route, Switch } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import Home from "./pages/Home";
+import HallidayInterview from "./pages/HallidayInterview";
 import DailyReflection from "./pages/DailyReflection";
 import PersonaChat from "./pages/PersonaChat";
 import Dashboard from "./pages/Dashboard";
@@ -15,8 +16,9 @@ function Router() {
   // make sure to consider if you need authentication for certain routes
   return (
     <Switch>
-      <Route path="/" component={Home} />
-      <Route path="/dashboard" component={Dashboard} />
+        <Route path={"\\"} component={Home} />
+      <Route path={"/halliday"} component={HallidayInterview} />
+      <Route path={"/404"} component={NotFound} />
       <Route path="/reflection" component={DailyReflection} />
       <Route path="/interview" component={InterviewMode} />
       <Route path="/chat" component={PersonaChat} />

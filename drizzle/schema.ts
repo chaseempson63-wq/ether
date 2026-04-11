@@ -161,3 +161,60 @@ export const chatMessages = mysqlTable("chatMessages", {
 
 export type ChatMessage = typeof chatMessages.$inferSelect;
 export type InsertChatMessage = typeof chatMessages.$inferInsert;
+
+/**
+ * Halliday Questions table: Stores the 140+ question framework
+ */
+export const hallidayQuestions = mysqlTable("halliday_questions", {
+  id: int("id").autoincrement().primaryKey(),
+  questionId: varchar("questionId", { length: 10 }).notNull().unique(), // Q001, Q002, etc.
+  category: varchar("category", { length: 50 }).notNull(), // voice_language, memory_life_events, etc.
+  section: varchar("section", { length: 100 }).notNull(), // Natural Speech Patterns, etc.
+  text: text("text").notNull(), // The actual question
+  weight: float("weight").notNull(), // Category weight (0.2, 0.25, etc.)
+  difficulty: int("difficulty").default(1), // 1-5 scale
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type HallidayQuestion = typeof hallidayQuestions.$inferSelect;
+export type InsertHallidayQuestion = typeof hallidayQuestions.$inferInsert;
+
+/**
+ * Halliday Responses table: Stores user answers to Halliday questions
+ */
+export const hallidayResponses = mysqlTable("halliday_responses", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(),
+  questionId: varchar("questionId", { length: 10 }).notNull(),
+  response: text("response").notNull(), // User's answer
+  responseType: mysqlEnum("responseType", ["text", "voice", "interview"]).notNull(),
+  specificity: float("specificity"), // 0.0-1.0 score for how specific the answer is
+  accuracy: float("accuracy"), // 0.0-1.0 score for how well it captures their identity
+  sourceMemoryId: int("sourceMemoryId"), // If response became a memory
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type HallidayResponse = typeof hallidayResponses.$inferSelect;
+export type InsertHallidayResponse = typeof hallidayResponses.$inferInsert;
+
+/**
+ * Halliday Progress table: Tracks user progress through the question bank
+ */
+export const hallidayProgress = mysqlTable("halliday_progress", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull().unique(),
+  totalQuestionsAnswered: int("totalQuestionsAnswered").default(0),
+  voiceLanguageProgress: float("voiceLanguageProgress").default(0), // 0.0-1.0
+  memoryLifeProgress: float("memoryLifeProgress").default(0),
+  reasoningDecisionsProgress: float("reasoningDecisionsProgress").default(0),
+  valuesBelifsProgress: float("valuesBelifsProgress").default(0),
+  emotionalPatternsProgress: float("emotionalPatternsProgress").default(0),
+  overallAccuracy: float("overallAccuracy").default(0), // Weighted accuracy across all categories
+  lastQuestionAnsweredAt: timestamp("lastQuestionAnsweredAt"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type HallidayProgress = typeof hallidayProgress.$inferSelect;
+export type InsertHallidayProgress = typeof hallidayProgress.$inferInsert;

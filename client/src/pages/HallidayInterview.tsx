@@ -6,8 +6,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Loader2, ChevronRight, CheckCircle, AlertCircle, TrendingUp } from "lucide-react";
+import { Loader2, ChevronRight, CheckCircle, AlertCircle, TrendingUp, ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
+import { useLocation } from "wouter";
+import { VoiceInput } from "@/components/VoiceInput";
 
 const CATEGORIES = [
   { id: "voice_language", name: "Voice & Language", weight: 20, emoji: "🗣️" },
@@ -26,6 +28,7 @@ const THRESHOLD_COLORS: Record<string, string> = {
 };
 
 export default function HallidayInterview() {
+  const [, setLocation] = useLocation();
   const [selectedCategory, setSelectedCategory] = useState<string>("reasoning_decisions");
   const [response, setResponse] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -97,6 +100,16 @@ export default function HallidayInterview() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-800 p-6">
       <div className="max-w-4xl mx-auto">
+
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => setLocation("/")}
+          className="mb-4 text-slate-400 hover:text-white hover:bg-slate-800"
+        >
+          <ArrowLeft className="h-4 w-4 mr-2" />
+          Home
+        </Button>
 
         {/* Header */}
         <div className="mb-8 flex items-start justify-between">
@@ -200,13 +213,22 @@ export default function HallidayInterview() {
                     {nextQuestion.text}
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-4">
-                  <Textarea
-                    placeholder="Be specific. Name people, places, dates. Generic answers train a generic AI. Your specificity is your identity..."
-                    value={response}
-                    onChange={(e) => setResponse(e.target.value)}
-                    className="min-h-36 bg-slate-700 border-slate-600 text-white placeholder:text-slate-500 text-base"
-                  />
+                <CardContent className="p-12 space-y-5">
+                  <div className="relative">
+                    <Textarea
+                      placeholder="Be specific. Name people, places, dates. Generic answers train a generic AI. Your specificity is your identity..."
+                      value={response}
+                      onChange={(e) => setResponse(e.target.value)}
+                      className="min-h-36 pr-12 bg-slate-700 border-slate-600 text-white placeholder:text-slate-500 text-base"
+                    />
+                    <VoiceInput
+                      disabled={isSubmitting}
+                      className="absolute bottom-2 right-2"
+                      onTranscript={(text) =>
+                        setResponse((prev) => (prev ? prev + " " + text : text))
+                      }
+                    />
+                  </div>
 
                   {/* Specificity preview */}
                   {response.trim().length > 0 && (

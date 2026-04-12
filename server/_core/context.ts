@@ -16,7 +16,11 @@ export async function createContext(
   try {
     user = await sdk.authenticateRequest(opts.req);
   } catch (error) {
-    // Authentication is optional for public procedures.
+    // Only log if a token was actually provided (not just an anonymous request)
+    const hasToken = opts.req.headers.authorization?.startsWith("Bearer ");
+    if (hasToken) {
+      console.error("[Auth] Failed to authenticate request:", error instanceof Error ? error.message : error);
+    }
     user = null;
   }
 

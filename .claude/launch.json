@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "ether-dev",
+      "runtimeExecutable": "/usr/local/bin/corepack",
+      "runtimeArgs": ["pnpm", "run", "dev"],
+      "port": 3000
+    }
+  ]
+}

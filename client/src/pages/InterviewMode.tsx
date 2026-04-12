@@ -6,7 +6,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
-import { Loader2, ChevronRight, CheckCircle2 } from "lucide-react";
+import { Loader2, ChevronRight, CheckCircle2, ArrowLeft } from "lucide-react";
+import { useLocation } from "wouter";
 
 interface InterviewQuestion {
   id: string;
@@ -18,6 +19,7 @@ interface InterviewQuestion {
 
 export default function InterviewMode() {
   const { user } = useAuth();
+  const [, setLocation] = useLocation();
   const [sessionId] = useState(() => `session-${Date.now()}`);
   const [questions, setQuestions] = useState<InterviewQuestion[]>([
     {
@@ -60,8 +62,8 @@ export default function InterviewMode() {
 
   if (!user) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <p>Please log in to access Interview Mode</p>
+      <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-800">
+        <p className="text-slate-400">Please log in to access Interview Mode</p>
       </div>
     );
   }
@@ -111,43 +113,53 @@ export default function InterviewMode() {
   const getCategoryColor = (category: string) => {
     switch (category) {
       case "values":
-        return "bg-purple-100 text-purple-800";
+        return "bg-purple-900/40 text-purple-300 border border-purple-800";
       case "decisions":
-        return "bg-blue-100 text-blue-800";
+        return "bg-blue-900/40 text-blue-300 border border-blue-800";
       case "lessons":
-        return "bg-green-100 text-green-800";
+        return "bg-green-900/40 text-green-300 border border-green-800";
       case "beliefs":
-        return "bg-orange-100 text-orange-800";
+        return "bg-orange-900/40 text-orange-300 border border-orange-800";
       default:
-        return "bg-gray-100 text-gray-800";
+        return "bg-slate-700 text-slate-300 border border-slate-600";
     }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-8">
+    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-800 p-6">
       <div className="max-w-4xl mx-auto">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => setLocation("/")}
+          className="mb-4 text-slate-400 hover:text-white hover:bg-slate-800"
+        >
+          <ArrowLeft className="h-4 w-4 mr-2" />
+          Home
+        </Button>
+
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-4xl font-bold text-slate-900 mb-2">Interview Mode</h1>
-          <p className="text-slate-600">
+          <h1 className="text-4xl font-bold text-white mb-2">Interview Mode</h1>
+          <p className="text-slate-400">
             Answer these questions to help your Digital Mind understand your reasoning and values.
           </p>
         </div>
 
         {/* Progress */}
-        <Card className="mb-8">
+        <Card className="mb-8 bg-slate-800 border-slate-700">
           <CardHeader>
-            <CardTitle className="text-lg">Progress</CardTitle>
+            <CardTitle className="text-lg text-white">Progress</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
               <div className="flex justify-between items-center">
-                <span className="text-sm font-medium text-slate-700">
+                <span className="text-sm font-medium text-slate-300">
                   {answeredCount} of {questions.length} questions answered
                 </span>
-                <span className="text-sm font-bold text-slate-900">{Math.round(progress)}%</span>
+                <span className="text-sm font-bold text-blue-400">{Math.round(progress)}%</span>
               </div>
-              <div className="w-full bg-slate-200 rounded-full h-2">
+              <div className="w-full bg-slate-700 rounded-full h-2">
                 <div
                   className="bg-blue-600 h-2 rounded-full transition-all duration-300"
                   style={{ width: `${progress}%` }}
@@ -159,12 +171,12 @@ export default function InterviewMode() {
 
         {/* Main Question Card */}
         {currentQuestionIndex < questions.length ? (
-          <Card className="mb-8">
+          <Card className="mb-8 bg-slate-800 border-slate-700">
             <CardHeader>
               <div className="flex items-start justify-between">
                 <div>
-                  <CardTitle className="text-2xl mb-2">{currentQuestion.question}</CardTitle>
-                  <CardDescription>
+                  <CardTitle className="text-2xl mb-2 text-white">{currentQuestion.question}</CardTitle>
+                  <CardDescription className="text-slate-400">
                     Question {currentQuestionIndex + 1} of {questions.length}
                   </CardDescription>
                 </div>
@@ -180,14 +192,14 @@ export default function InterviewMode() {
                   value={response}
                   onChange={(e) => setResponse(e.target.value)}
                   rows={6}
-                  className="resize-none"
+                  className="resize-none bg-slate-700 border-slate-600 text-white placeholder:text-slate-500"
                 />
                 <div className="flex gap-4">
                   <Button
                     onClick={handleSubmitResponse}
                     disabled={isSubmitting || !response.trim()}
                     size="lg"
-                    className="flex-1"
+                    className="flex-1 bg-blue-600 hover:bg-blue-700"
                   >
                     {isSubmitting ? (
                       <>
@@ -209,6 +221,7 @@ export default function InterviewMode() {
                         setResponse(questions[currentQuestionIndex - 1].response || "");
                       }}
                       disabled={isSubmitting}
+                      className="border-slate-600 text-slate-300 hover:bg-slate-800 hover:text-white"
                     >
                       Previous
                     </Button>
@@ -218,14 +231,18 @@ export default function InterviewMode() {
             </CardContent>
           </Card>
         ) : (
-          <Card className="mb-8">
+          <Card className="mb-8 bg-slate-800 border-slate-700">
             <CardContent className="pt-12 pb-12 text-center">
-              <CheckCircle2 className="h-16 w-16 text-green-500 mx-auto mb-4" />
-              <h2 className="text-2xl font-bold text-slate-900 mb-2">Interview Complete!</h2>
-              <p className="text-slate-600 mb-6">
+              <CheckCircle2 className="h-16 w-16 text-green-400 mx-auto mb-4" />
+              <h2 className="text-2xl font-bold text-white mb-2">Interview Complete!</h2>
+              <p className="text-slate-400 mb-6">
                 Your responses have been saved and will help shape your Digital Mind.
               </p>
-              <Button onClick={() => window.location.href = "/"} size="lg">
+              <Button
+                onClick={() => setLocation("/")}
+                size="lg"
+                className="bg-blue-600 hover:bg-blue-700"
+              >
                 Return to Home
               </Button>
             </CardContent>
@@ -233,10 +250,10 @@ export default function InterviewMode() {
         )}
 
         {/* Question List */}
-        <Card>
+        <Card className="bg-slate-800 border-slate-700">
           <CardHeader>
-            <CardTitle>All Questions</CardTitle>
-            <CardDescription>Track your progress through the interview</CardDescription>
+            <CardTitle className="text-white">All Questions</CardTitle>
+            <CardDescription className="text-slate-400">Track your progress through the interview</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-2">
@@ -245,10 +262,10 @@ export default function InterviewMode() {
                   key={q.id}
                   className={`p-3 rounded-lg border cursor-pointer transition ${
                     idx === currentQuestionIndex
-                      ? "border-blue-500 bg-blue-50"
+                      ? "border-blue-500 bg-blue-900/30"
                       : q.answered
-                        ? "border-green-500 bg-green-50"
-                        : "border-slate-200 bg-slate-50"
+                        ? "border-green-700 bg-green-900/20"
+                        : "border-slate-700 bg-slate-900/40 hover:bg-slate-900/60"
                   }`}
                   onClick={() => {
                     setCurrentQuestionIndex(idx);
@@ -258,13 +275,13 @@ export default function InterviewMode() {
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3 flex-1">
                       {q.answered ? (
-                        <CheckCircle2 className="h-5 w-5 text-green-600 flex-shrink-0" />
+                        <CheckCircle2 className="h-5 w-5 text-green-400 flex-shrink-0" />
                       ) : (
-                        <div className="h-5 w-5 rounded-full border-2 border-slate-300 flex-shrink-0" />
+                        <div className="h-5 w-5 rounded-full border-2 border-slate-600 flex-shrink-0" />
                       )}
-                      <span className="text-sm text-slate-700 line-clamp-1">{q.question}</span>
+                      <span className="text-sm text-slate-300 line-clamp-1">{q.question}</span>
                     </div>
-                    <Badge variant="outline" className="text-xs ml-2">
+                    <Badge variant="outline" className="text-xs ml-2 border-slate-600 text-slate-400">
                       {q.category}
                     </Badge>
                   </div>

@@ -1,5 +1,6 @@
 import { eq, desc } from "drizzle-orm";
-import { drizzle } from "drizzle-orm/mysql2";
+import { drizzle } from "drizzle-orm/postgres-js";
+import postgres from "postgres";
 import { InsertUser, users, memories, reasoningPatterns, coreValues, beneficiaries, profiles } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
@@ -9,7 +10,8 @@ let _db: ReturnType<typeof drizzle> | null = null;
 export async function getDb() {
   if (!_db && process.env.DATABASE_URL) {
     try {
-      _db = drizzle(process.env.DATABASE_URL);
+      const client = postgres(process.env.DATABASE_URL, { prepare: false });
+      _db = drizzle(client);
     } catch (error) {
       console.warn("[Database] Failed to connect:", error);
       _db = null;
@@ -68,7 +70,8 @@ export async function upsertUser(user: InsertUser): Promise<void> {
       updateSet.lastSignedIn = new Date();
     }
 
-    await db.insert(users).values(values).onDuplicateKeyUpdate({
+    await db.insert(users).values(values).onConflictDoUpdate({
+      target: users.openId,
       set: updateSet,
     });
   } catch (error) {
@@ -100,23 +103,23 @@ export async function createMemory(userId: number, data: {
 }) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  
+
   const result = await db.insert(memories).values({
     userId,
     content: data.content,
     sourceType: data.sourceType,
     occurredAt: data.occurredAt,
-    tags: data.tags ? JSON.stringify(data.tags) : null,
-    embedding: data.embedding ? JSON.stringify(data.embedding) : null,
+    tags: data.tags ?? null,
+    embedding: data.embedding ?? null,
   });
-  
+
   return result;
 }
 
 export async function getMemoriesByUserId(userId: number, limit = 50) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  
+
   return db.select().from(memories).where(eq(memories.userId, userId)).orderBy(desc(memories.createdAt)).limit(limit);
 }
 
@@ -129,21 +132,21 @@ export async function createReasoningPattern(userId: number, data: {
 }) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  
+
   return db.insert(reasoningPatterns).values({
     userId,
     decision: data.decision,
     logicWhy: data.logicWhy,
     outcome: data.outcome,
-    tags: data.tags ? JSON.stringify(data.tags) : null,
-    embedding: data.embedding ? JSON.stringify(data.embedding) : null,
+    tags: data.tags ?? null,
+    embedding: data.embedding ?? null,
   });
 }
 
 export async function getReasoningPatternsByUserId(userId: number, limit = 50) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  
+
   return db.select().from(reasoningPatterns).where(eq(reasoningPatterns.userId, userId)).orderBy(desc(reasoningPatterns.createdAt)).limit(limit);
 }
 
@@ -155,20 +158,20 @@ export async function createCoreValue(userId: number, data: {
 }) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  
+
   return db.insert(coreValues).values({
     userId,
     valueStatement: data.valueStatement,
     beliefContext: data.beliefContext,
     priority: data.priority || 1,
-    embedding: data.embedding ? JSON.stringify(data.embedding) : null,
+    embedding: data.embedding ?? null,
   });
 }
 
 export async function getCoreValuesByUserId(userId: number) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  
+
   return db.select().from(coreValues).where(eq(coreValues.userId, userId)).orderBy(coreValues.priority);
 }
 
@@ -180,7 +183,7 @@ export async function createBeneficiary(userId: number, data: {
 }) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  
+
   return db.insert(beneficiaries).values({
     userId,
     name: data.name,
@@ -193,28 +196,57 @@ export async function createBeneficiary(userId: number, data: {
 export async function getBeneficiariesByUserId(userId: number) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  
+
   return db.select().from(beneficiaries).where(eq(beneficiaries.userId, userId));
 }
 
 export async function getOrCreateProfile(userId: number, data?: { bio?: string; headline?: string }) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  
+
   const existing = await db.select().from(profiles).where(eq(profiles.userId, userId)).limit(1);
-  
+
   if (existing.length > 0) {
     return existing[0];
   }
-  
+
   await db.insert(profiles).values({
     userId,
     bio: data?.bio,
     headline: data?.headline,
   });
-  
+
   const created = await db.select().from(profiles).where(eq(profiles.userId, userId)).limit(1);
   return created[0];
 }
 
-// TODO: add feature queries here as your schema grows.
+// Auth helpers
+
+export async function getUserByEmail(email: string) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db.select().from(users).where(eq(users.email, email)).limit(1);
+  return result[0] ?? undefined;
+}
+
+/**
+ * Look up a user by their Supabase UUID (stored in openId).
+ * If the user doesn't exist yet, auto-provision a row in our users table.
+ */
+export async function ensureUser(
+  supabaseId: string,
+  email: string,
+  name: string
+) {
+  let user = await getUserByOpenId(supabaseId);
+  if (user) return user;
+
+  await upsertUser({
+    openId: supabaseId,
+    email,
+    name,
+    loginMethod: "supabase",
+    lastSignedIn: new Date(),
+  });
+  return getUserByOpenId(supabaseId);
+}

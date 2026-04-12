@@ -2,7 +2,6 @@ import { useAuth } from "@/_core/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Brain, BookOpen, MessageSquare, Zap } from "lucide-react";
-import { getLoginUrl } from "@/const";
 import { useLocation } from "wouter";
 
 export default function Home() {
@@ -24,7 +23,7 @@ export default function Home() {
         {!isAuthenticated ? (
           <div className="text-center mb-16">
             <Button
-              onClick={() => (window.location.href = getLoginUrl())}
+              onClick={() => setLocation("/register")}
               size="lg"
               className="bg-blue-600 hover:bg-blue-700"
             >
@@ -46,6 +45,22 @@ export default function Home() {
               </CardHeader>
               <CardContent>
                 <p className="text-slate-300 text-sm">Answer 140+ questions across 5 categories to teach the AI how you think and feel.</p>
+              </CardContent>
+            </Card>
+
+            <Card
+              className="bg-slate-800 border-slate-700 cursor-pointer hover:bg-slate-700 transition"
+              onClick={() => setLocation("/quick")}
+            >
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-white">
+                  <Zap className="h-5 w-5 text-blue-400" />
+                  Quick Memory
+                </CardTitle>
+                <CardDescription className="text-slate-400">Capture a thought before it's gone.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <p className="text-slate-300 text-sm">One tap. Speak. Saved. The fastest way to put something into Ether.</p>
               </CardContent>
             </Card>
 

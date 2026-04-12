@@ -11,18 +11,24 @@ import PersonaChat from "./pages/PersonaChat";
 import Dashboard from "./pages/Dashboard";
 import InterviewMode from "./pages/InterviewMode";
 import BeneficiaryManagement from "./pages/BeneficiaryManagement";
+import QuickMemory from "./pages/QuickMemory";
+import Login from "./pages/Login";
+import Register from "./pages/Register";
 
 function Router() {
   // make sure to consider if you need authentication for certain routes
   return (
     <Switch>
-        <Route path={"\\"} component={Home} />
-      <Route path={"/halliday"} component={HallidayInterview} />
-      <Route path={"/404"} component={NotFound} />
+      <Route path="/" component={Home} />
+      <Route path="/halliday" component={HallidayInterview} />
+      <Route path="/quick" component={QuickMemory} />
+      <Route path="/dashboard" component={Dashboard} />
       <Route path="/reflection" component={DailyReflection} />
       <Route path="/interview" component={InterviewMode} />
       <Route path="/chat" component={PersonaChat} />
       <Route path="/beneficiaries" component={BeneficiaryManagement} />
+      <Route path="/login" component={Login} />
+      <Route path="/register" component={Register} />
       <Route path="/404" component={NotFound} />
       {/* Final fallback route */}
       <Route component={NotFound} />

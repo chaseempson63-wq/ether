@@ -96,7 +96,9 @@ export const conversationRouter = router({
         role: z.enum(["user", "assistant"]),
         content: z.string(),
         truthfulnessTag: z.enum(["Known Memory", "Likely Inference", "Speculation"]).optional(),
-        sourceMemories: z.array(z.number()).optional(),
+        sourceMemories: z
+          .array(z.object({ id: z.number(), title: z.string(), content: z.string() }))
+          .optional(),
         confidence: z.number().min(0).max(1).optional(),
       })
     )

@@ -6,24 +6,27 @@ import { conversationRouter } from "./routers/conversations";
 import { beneficiaryRouter } from "./routers/beneficiary";
 import { publicProcedure, protectedProcedure, router } from "./_core/trpc";
 import { z } from "zod";
-import { createMemory, getMemoriesByUserId, createReasoningPattern, getReasoningPatternsByUserId, createCoreValue, getCoreValuesByUserId, createBeneficiary, getBeneficiariesByUserId, getOrCreateProfile } from "./db";
+import { createMemory, getMemoriesByUserId, createReasoningPattern, getReasoningPatternsByUserId, createCoreValue, getCoreValuesByUserId, getOrCreateProfile } from "./db";
 import { personaRouter } from "./routers/persona";
 import { interviewRouter } from "./routers/interview";
 
 export const appRouter = router({
-    // if you need to use socket.io, read and register route in server/_core/index.ts, all api should start with '/api/' so that the gateway can route correctly
   system: systemRouter,
   halliday: hallidayRouter,
   conversations: conversationRouter,
   beneficiary: beneficiaryRouter,
+
   auth: router({
+    // Returns the current user from our local DB (populated via auto-provision
+    // when Supabase token is verified in createContext).
     me: publicProcedure.query(opts => opts.ctx.user),
+
+    // Server-side logout clears any legacy cookie. The real session teardown
+    // happens client-side via supabase.auth.signOut().
     logout: publicProcedure.mutation(({ ctx }) => {
       const cookieOptions = getSessionCookieOptions(ctx.req);
       ctx.res.clearCookie(COOKIE_NAME, { ...cookieOptions, maxAge: -1 });
-      return {
-        success: true,
-      } as const;
+      return { success: true } as const;
     }),
   }),
 
@@ -92,8 +95,6 @@ export const appRouter = router({
         return getOrCreateProfile(ctx.user.id, input);
       }),
   }),
-
-
 
   persona: personaRouter,
   interview: interviewRouter,

@@ -42,7 +42,7 @@ export default function HallidayInterview() {
   const { data: nextQuestion, refetch: refetchQuestion, isLoading: questionLoading } =
     trpc.halliday.getNextQuestion.useQuery(
       { category: selectedCategory },
-      { enabled: !!selectedCategory }
+      { enabled: !!selectedCategory, refetchOnWindowFocus: false }
     );
 
   const { data: progress, refetch: refetchProgress } = trpc.halliday.getProgress.useQuery();

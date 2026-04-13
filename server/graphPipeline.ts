@@ -295,11 +295,38 @@ async function embedNodes(nameToId: Map<string, string>, entities: ExtractedEnti
   }
 }
 
+// ─── Retry helper ───
+
+async function withRetry<T>(
+  fn: () => Promise<T>,
+  label: string,
+  maxRetries = 1,
+  delayMs = 3000
+): Promise<T> {
+  let lastError: unknown;
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      return await fn();
+    } catch (err) {
+      lastError = err;
+      if (attempt < maxRetries) {
+        console.warn(
+          `[GraphPipeline] ${label} failed (attempt ${attempt + 1}/${maxRetries + 1}), retrying in ${delayMs}ms:`,
+          err instanceof Error ? err.message : err
+        );
+        await new Promise((resolve) => setTimeout(resolve, delayMs));
+      }
+    }
+  }
+  throw lastError;
+}
+
 // ─── Main pipeline entry point ───
 
 /**
  * Process content through the graph extraction pipeline.
  * Runs asynchronously — caller should fire-and-forget.
+ * Each step has 1 retry with a 3-second delay on failure.
  *
  * 1. Extract entities via Venice
  * 2. Resolve duplicates or create new nodes
@@ -314,29 +341,44 @@ export async function processContent(
   try {
     console.log(`[GraphPipeline] Starting extraction for user ${userId} (${content.length} chars)`);
 
-    // Step 1: Extract entities
-    const entities = await extractEntities(content);
+    // Step 1: Extract entities (with retry)
+    const entities = await withRetry(
+      () => extractEntities(content),
+      "extractEntities"
+    );
     if (entities.length === 0) {
       console.log("[GraphPipeline] No entities extracted, skipping");
       return;
     }
     console.log(`[GraphPipeline] Extracted ${entities.length} entities: ${entities.map((e) => e.name).join(", ")}`);
 
-    // Step 2: Resolve or create nodes
-    const nameToId = await resolveOrCreateNodes(userId, entities, sourceType);
+    // Step 2: Resolve or create nodes (with retry)
+    const nameToId = await withRetry(
+      () => resolveOrCreateNodes(userId, entities, sourceType),
+      "resolveOrCreateNodes"
+    );
     console.log(`[GraphPipeline] Resolved/created ${nameToId.size} nodes`);
 
-    // Step 3: Create edges
-    await proposeAndCreateEdges(userId, content, entities, nameToId);
+    // Step 3: Create edges (with retry)
+    await withRetry(
+      () => proposeAndCreateEdges(userId, content, entities, nameToId),
+      "proposeAndCreateEdges"
+    );
     console.log("[GraphPipeline] Edges created");
 
-    // Step 4: Generate embeddings
-    await embedNodes(nameToId, entities);
+    // Step 4: Generate embeddings (with retry)
+    await withRetry(
+      () => embedNodes(nameToId, entities),
+      "embedNodes"
+    );
     console.log("[GraphPipeline] Embeddings generated");
 
     console.log(`[GraphPipeline] Done for user ${userId}`);
   } catch (err) {
-    console.error("[GraphPipeline] Pipeline failed:", err instanceof Error ? err.message : err);
+    console.error(
+      "[GraphPipeline] Pipeline failed after retries:",
+      err instanceof Error ? err.message : err
+    );
     // Never throw — this is a background job
   }
 }

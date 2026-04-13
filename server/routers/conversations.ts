@@ -3,6 +3,7 @@ import { z } from "zod";
 import { getDb } from "../db";
 import { conversations, chatMessages } from "../../drizzle/schema";
 import { eq, desc } from "drizzle-orm";
+import { invokeLLM } from "../_core/llm";
 
 export const conversationRouter = router({
   // Create a new conversation
@@ -189,6 +190,70 @@ export const conversationRouter = router({
       } catch (error) {
         console.error("Failed to delete conversation:", error);
         throw new Error("Failed to delete conversation");
+      }
+    }),
+
+  // Update a conversation's title
+  updateTitle: protectedProcedure
+    .input(z.object({
+      conversationId: z.number(),
+      title: z.string().min(1).max(255),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const db = await getDb();
+      if (!db) throw new Error("Database not available");
+
+      await db
+        .update(conversations)
+        .set({ title: input.title })
+        .where(eq(conversations.id, input.conversationId));
+
+      return { success: true };
+    }),
+
+  // Auto-generate a short title from the first message via Venice
+  generateTitle: protectedProcedure
+    .input(z.object({
+      conversationId: z.number(),
+      firstMessage: z.string(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const db = await getDb();
+      if (!db) throw new Error("Database not available");
+
+      try {
+        const result = await invokeLLM({
+          messages: [
+            {
+              role: "system",
+              content:
+                "Generate a short 3-6 word title for a conversation that starts with this message. " +
+                "Return only the title, nothing else. No quotes, no punctuation at the end.",
+            },
+            { role: "user", content: input.firstMessage },
+          ],
+        });
+
+        const title =
+          typeof result.choices?.[0]?.message?.content === "string"
+            ? result.choices[0].message.content.trim().slice(0, 60)
+            : input.firstMessage.slice(0, 40);
+
+        await db
+          .update(conversations)
+          .set({ title })
+          .where(eq(conversations.id, input.conversationId));
+
+        return { title };
+      } catch (error) {
+        console.error("Failed to generate title:", error);
+        // Fallback: use first 40 chars of message
+        const fallback = input.firstMessage.trim().slice(0, 40);
+        await db
+          .update(conversations)
+          .set({ title: fallback })
+          .where(eq(conversations.id, input.conversationId));
+        return { title: fallback };
       }
     }),
 });

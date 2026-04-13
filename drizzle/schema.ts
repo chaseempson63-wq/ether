@@ -1,4 +1,4 @@
-import { integer, jsonb, pgEnum, pgTable, real, serial, text, timestamp, varchar, boolean } from "drizzle-orm/pg-core";
+import { integer, jsonb, pgEnum, pgTable, real, serial, text, timestamp, varchar, boolean, uuid, vector, index } from "drizzle-orm/pg-core";
 
 // ─── Enum types (match CREATE TYPE in 001_init.sql) ───
 
@@ -8,6 +8,25 @@ export const accessLevelEnum = pgEnum("access_level", ["full", "restricted", "le
 export const messageRoleEnum = pgEnum("message_role", ["user", "assistant"]);
 export const truthfulnessTagEnum = pgEnum("truthfulness_tag", ["Known Memory", "Likely Inference", "Speculation"]);
 export const responseTypeEnum = pgEnum("response_type", ["text", "voice", "interview"]);
+
+// ─── Graph memory enums (match CREATE TYPE in 002_graph_memory.sql) ───
+
+export const nodeTypeEnum = pgEnum("node_type", [
+  "memory", "person", "place", "value", "belief",
+  "reasoning_pattern", "decision", "skill", "event",
+  "emotion", "concept",
+]);
+
+export const hallidayLayerEnum = pgEnum("halliday_layer", [
+  "voice_and_language", "memory_and_life_events",
+  "reasoning_and_decisions", "values_and_beliefs",
+  "emotional_patterns",
+]);
+
+export const graphSourceTypeEnum = pgEnum("graph_source_type", [
+  "journal", "voice_memo", "interview", "halliday", "chat",
+  "reflection", "quick_memory", "system_inferred",
+]);
 
 // ─── Users ───
 
@@ -206,3 +225,48 @@ export const hallidayProgress = pgTable("halliday_progress", {
 
 export type HallidayProgress = typeof hallidayProgress.$inferSelect;
 export type InsertHallidayProgress = typeof hallidayProgress.$inferInsert;
+
+// ─── Memory Nodes (graph-based unified identity data) ───
+
+export const memoryNodes = pgTable("memory_nodes", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  userId: integer("user_id").notNull(),
+  nodeType: nodeTypeEnum("node_type").notNull(),
+  hallidayLayer: hallidayLayerEnum("halliday_layer").notNull(),
+  content: text("content").notNull(),
+  summary: text("summary"),
+  embedding: vector("embedding", { dimensions: 1024 }),
+  sourceType: graphSourceTypeEnum("source_type").notNull(),
+  confidence: real("confidence").default(1.0),
+  metadata: jsonb("metadata"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  index("memory_nodes_user_id_idx").on(table.userId),
+  index("memory_nodes_node_type_idx").on(table.nodeType),
+  index("memory_nodes_halliday_layer_idx").on(table.hallidayLayer),
+  index("memory_nodes_embedding_idx").using("hnsw", table.embedding.op("vector_cosine_ops")),
+]);
+
+export type MemoryNode = typeof memoryNodes.$inferSelect;
+export type InsertMemoryNode = typeof memoryNodes.$inferInsert;
+
+// ─── Memory Edges (relationships between nodes) ───
+
+export const memoryEdges = pgTable("memory_edges", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  userId: integer("user_id").notNull(),
+  sourceNodeId: uuid("source_node_id").notNull(),
+  targetNodeId: uuid("target_node_id").notNull(),
+  relationshipType: text("relationship_type").notNull(),
+  strength: real("strength").default(0.5),
+  evidence: text("evidence"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  index("memory_edges_user_id_idx").on(table.userId),
+  index("memory_edges_source_node_idx").on(table.sourceNodeId),
+  index("memory_edges_target_node_idx").on(table.targetNodeId),
+]);
+
+export type MemoryEdge = typeof memoryEdges.$inferSelect;
+export type InsertMemoryEdge = typeof memoryEdges.$inferInsert;

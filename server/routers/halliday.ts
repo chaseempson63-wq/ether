@@ -1,8 +1,10 @@
 import { z } from "zod";
 import { protectedProcedure, router } from "../_core/trpc";
 import { getDb } from "../db";
+import { processContent } from "../graphPipeline";
 import { hallidayQuestions, hallidayResponses, hallidayProgress, memories } from "../../drizzle/schema";
 import { eq, and, desc, inArray, avg } from "drizzle-orm";
+import { invokeLLM } from "../_core/llm";
 
 // Category weights as defined in the Halliday framework
 const CATEGORY_WEIGHTS: Record<string, number> = {
@@ -155,6 +157,43 @@ export const hallidayRouter = router({
     }),
 
   /**
+   * Generate conversational follow-up questions to dig deeper into a user's
+   * initial answer before saving.
+   */
+  generateFollowUp: protectedProcedure
+    .input(z.object({
+      questionText: z.string(),
+      userAnswer: z.string().min(1),
+    }))
+    .mutation(async ({ input }) => {
+      const result = await invokeLLM({
+        messages: [
+          {
+            role: "system",
+            content:
+              "You are an interviewer helping someone capture their life story. " +
+              "They just answered a question but their response may be surface-level. " +
+              "Ask 1-2 short follow-up questions that dig deeper into the WHY, the EMOTION, " +
+              "or the SPECIFIC DETAILS of what they shared. Be warm and curious, not clinical. " +
+              "Keep it to 2-3 sentences max. Do not repeat what they said. " +
+              "Do not number your questions — write them as natural conversational prose.",
+          },
+          {
+            role: "user",
+            content: `Question: ${input.questionText}\n\nTheir answer: ${input.userAnswer}`,
+          },
+        ],
+      });
+
+      const followUp =
+        typeof result.choices?.[0]?.message?.content === "string"
+          ? result.choices[0].message.content
+          : "Could you tell me more about that? What was going through your mind at the time?";
+
+      return { followUp };
+    }),
+
+  /**
    * Submit a response to a Halliday question.
    * Automatically calculates specificity from response text.
    */
@@ -203,6 +242,12 @@ export const hallidayRouter = router({
 
       // Update weighted progress
       await updateUserProgress(db, ctx.user.id);
+
+      // Background: extract entities from the full response
+      const fullContent = question.length > 0
+        ? `[Halliday Interview — ${question[0].category.replace(/_/g, " ")}] ${question[0].text}\n\nAnswer: ${input.response}`
+        : input.response;
+      processContent(ctx.user.id, fullContent, 'halliday');
 
       return { success: true, specificity };
     }),

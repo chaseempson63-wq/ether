@@ -27,6 +27,9 @@ import {
   Plus,
   PanelLeft,
   Trash2,
+  Pencil,
+  Check,
+  X,
 } from "lucide-react";
 import { Streamdown } from "streamdown";
 import { toast } from "sonner";
@@ -46,12 +49,6 @@ interface Message {
   confidence?: number;
   createdAt?: Date;
 }
-
-const deriveTitle = (msg: string) => {
-  const trimmed = msg.trim();
-  if (trimmed.length <= 40) return trimmed;
-  return trimmed.slice(0, 40) + "…";
-};
 
 const isRichSourceMemories = (
   s: SourceMemoriesField
@@ -78,6 +75,8 @@ export default function PersonaChat() {
   const addMessage = trpc.conversations.addMessage.useMutation();
   const deleteConversation = trpc.conversations.delete.useMutation();
   const chatWithPersona = trpc.persona.chat.useMutation();
+  const generateTitle = trpc.conversations.generateTitle.useMutation();
+  const updateTitle = trpc.conversations.updateTitle.useMutation();
 
   // Load messages when a saved conversation is selected
   useEffect(() => {
@@ -122,13 +121,22 @@ export default function PersonaChat() {
     try {
       await deleteConversation.mutateAsync({ conversationId: id });
       await utils.conversations.list.invalidate();
-      if (id === conversationId) {
-        handleNewChat();
-      }
+      if (id === conversationId) handleNewChat();
       toast.success("Conversation deleted");
-    } catch (error) {
-      console.error("Failed to delete conversation:", error);
+    } catch {
       toast.error("Failed to delete conversation");
+    }
+  };
+
+  const handleRenameConversation = async (id: number, newTitle: string) => {
+    try {
+      await updateTitle.mutateAsync({ conversationId: id, title: newTitle });
+      await utils.conversations.list.invalidate();
+      if (id === conversationId) {
+        await utils.conversations.getWithMessages.invalidate({ conversationId: id });
+      }
+    } catch {
+      toast.error("Failed to rename conversation");
     }
   };
 
@@ -141,12 +149,13 @@ export default function PersonaChat() {
     setIsLoading(true);
 
     let activeId = conversationId;
+    const isFirstMessage = activeId === null;
 
     try {
-      // Lazy-create the conversation on first send
+      // Lazy-create with a placeholder title
       if (activeId === null) {
         const created = await createConversation.mutateAsync({
-          title: deriveTitle(userMessage),
+          title: "New Chat",
         });
         activeId = created.id;
         setConversationId(activeId);
@@ -163,6 +172,14 @@ export default function PersonaChat() {
         role: "user",
         content: userMessage,
       });
+
+      // Auto-generate title from first message (fire-and-forget)
+      if (isFirstMessage) {
+        generateTitle
+          .mutateAsync({ conversationId: activeId, firstMessage: userMessage })
+          .then(() => utils.conversations.list.invalidate())
+          .catch(() => {});
+      }
 
       // Get AI response
       const response = await chatWithPersona.mutateAsync({
@@ -183,7 +200,7 @@ export default function PersonaChat() {
       };
       setMessages((prev) => [...prev, aiMsg]);
 
-      // Persist AI message with rich citations
+      // Persist AI message
       await addMessage.mutateAsync({
         conversationId: activeId,
         role: "assistant",
@@ -198,8 +215,7 @@ export default function PersonaChat() {
       });
 
       await utils.conversations.list.invalidate();
-    } catch (error) {
-      console.error("Failed to send message:", error);
+    } catch {
       toast.error("Failed to send message");
       setMessages((prev) => prev.slice(0, -1));
     } finally {
@@ -207,10 +223,16 @@ export default function PersonaChat() {
     }
   };
 
-  const currentTitle =
-    conversationId !== null
-      ? conversationWithMessagesQuery.data?.title || "Conversation"
-      : "New Chat";
+  // Fix #1: title derivation — use "New Chat" when no conversation is selected,
+  // and pull from the list query (updates faster than getWithMessages) for active ones
+  const currentTitle = (() => {
+    if (conversationId === null) return "New Chat";
+    const fromList = conversationsListQuery.data?.find((c) => c.id === conversationId);
+    if (fromList?.title && fromList.title !== "New Chat") return fromList.title;
+    const fromQuery = conversationWithMessagesQuery.data?.title;
+    if (fromQuery && fromQuery !== "New Chat") return fromQuery;
+    return "New Chat";
+  })();
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-800 p-6">
@@ -269,25 +291,22 @@ export default function PersonaChat() {
               <ScrollArea className="flex-1">
                 <div className="p-2 space-y-1">
                   {conversationsListQuery.isLoading ? (
-                    <div className="p-4 text-center text-slate-500 text-sm">
-                      Loading…
-                    </div>
-                  ) : conversationsListQuery.data &&
-                    conversationsListQuery.data.length > 0 ? (
+                    <div className="p-4 text-center text-slate-500 text-sm">Loading…</div>
+                  ) : conversationsListQuery.data && conversationsListQuery.data.length > 0 ? (
                     conversationsListQuery.data.map((conv) => (
                       <ConversationRow
                         key={conv.id}
+                        id={conv.id}
                         title={conv.title || "Untitled"}
                         updatedAt={conv.updatedAt}
                         isActive={conv.id === conversationId}
                         onSelect={() => handleSelectConversation(conv.id)}
                         onDelete={() => setPendingDeleteId(conv.id)}
+                        onRename={(newTitle) => handleRenameConversation(conv.id, newTitle)}
                       />
                     ))
                   ) : (
-                    <div className="p-4 text-center text-slate-500 text-sm">
-                      No past conversations
-                    </div>
+                    <div className="p-4 text-center text-slate-500 text-sm">No past conversations</div>
                   )}
                 </div>
               </ScrollArea>
@@ -394,45 +413,112 @@ export default function PersonaChat() {
 // Helper components
 
 function ConversationRow({
+  id,
   title,
   updatedAt,
   isActive,
   onSelect,
   onDelete,
+  onRename,
 }: {
+  id: number;
   title: string;
   updatedAt: Date | string;
   isActive: boolean;
   onSelect: () => void;
   onDelete: () => void;
+  onRename: (newTitle: string) => void;
 }) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [editValue, setEditValue] = useState(title);
+  const inputRef = useRef<HTMLInputElement>(null);
   const updated = typeof updatedAt === "string" ? new Date(updatedAt) : updatedAt;
   const stamp = formatDistanceToNow(updated, { addSuffix: true });
+
+  const startEditing = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setEditValue(title);
+    setIsEditing(true);
+    setTimeout(() => inputRef.current?.select(), 0);
+  };
+
+  const commitRename = () => {
+    const trimmed = editValue.trim();
+    if (trimmed && trimmed !== title) {
+      onRename(trimmed);
+    }
+    setIsEditing(false);
+  };
+
+  const cancelEditing = () => {
+    setEditValue(title);
+    setIsEditing(false);
+  };
+
+  if (isEditing) {
+    return (
+      <div className="rounded-md px-3 py-2 bg-slate-700 flex items-center gap-1.5">
+        <input
+          ref={inputRef}
+          value={editValue}
+          onChange={(e) => setEditValue(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") commitRename();
+            if (e.key === "Escape") cancelEditing();
+          }}
+          onBlur={commitRename}
+          onClick={(e) => e.stopPropagation()}
+          className="flex-1 min-w-0 bg-slate-600 border border-slate-500 rounded px-2 py-1 text-sm text-white outline-none focus:border-blue-500"
+          autoFocus
+        />
+        <button
+          type="button"
+          onClick={(e) => { e.stopPropagation(); commitRename(); }}
+          className="text-green-400 hover:text-green-300 p-0.5 flex-shrink-0"
+        >
+          <Check className="h-3.5 w-3.5" />
+        </button>
+        <button
+          type="button"
+          onClick={(e) => { e.stopPropagation(); cancelEditing(); }}
+          className="text-slate-400 hover:text-slate-300 p-0.5 flex-shrink-0"
+        >
+          <X className="h-3.5 w-3.5" />
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div
       onClick={onSelect}
       className={cn(
         "group rounded-md px-3 py-2 cursor-pointer transition flex items-start gap-2",
-        isActive
-          ? "bg-slate-700"
-          : "hover:bg-slate-700/50"
+        isActive ? "bg-slate-700" : "hover:bg-slate-700/50"
       )}
     >
       <div className="flex-1 min-w-0">
         <div className="text-sm font-medium text-white truncate">{title}</div>
         <div className="text-xs text-slate-500 mt-0.5">{stamp}</div>
       </div>
-      <button
-        type="button"
-        onClick={(e) => {
-          e.stopPropagation();
-          onDelete();
-        }}
-        className="opacity-0 group-hover:opacity-100 text-slate-500 hover:text-red-400 transition flex-shrink-0 p-1"
-        aria-label="Delete conversation"
-      >
-        <Trash2 className="h-4 w-4" />
-      </button>
+      <div className="opacity-0 group-hover:opacity-100 flex items-center gap-0.5 flex-shrink-0">
+        <button
+          type="button"
+          onClick={startEditing}
+          className="text-slate-500 hover:text-blue-400 transition p-1"
+          aria-label="Rename conversation"
+        >
+          <Pencil className="h-3.5 w-3.5" />
+        </button>
+        <button
+          type="button"
+          onClick={(e) => { e.stopPropagation(); onDelete(); }}
+          className="text-slate-500 hover:text-red-400 transition p-1"
+          aria-label="Delete conversation"
+        >
+          <Trash2 className="h-3.5 w-3.5" />
+        </button>
+      </div>
     </div>
   );
 }
@@ -472,13 +558,7 @@ function MessageBubble({ message }: { message: Message }) {
   );
 }
 
-function TruthfulnessBadge({
-  tag,
-  confidence,
-}: {
-  tag: string;
-  confidence?: number;
-}) {
+function TruthfulnessBadge({ tag, confidence }: { tag: string; confidence?: number }) {
   const className =
     tag === "Known Memory"
       ? "bg-green-900/40 text-green-300 border border-green-800"
@@ -533,18 +613,9 @@ function TypingIndicator() {
   return (
     <div className="flex justify-start">
       <div className="bg-slate-800 border border-slate-700 rounded-lg px-4 py-3 flex gap-1.5 items-center">
-        <span
-          className="w-2 h-2 bg-slate-400 rounded-full animate-pulse"
-          style={{ animationDelay: "0ms" }}
-        />
-        <span
-          className="w-2 h-2 bg-slate-400 rounded-full animate-pulse"
-          style={{ animationDelay: "150ms" }}
-        />
-        <span
-          className="w-2 h-2 bg-slate-400 rounded-full animate-pulse"
-          style={{ animationDelay: "300ms" }}
-        />
+        <span className="w-2 h-2 bg-slate-400 rounded-full animate-pulse" style={{ animationDelay: "0ms" }} />
+        <span className="w-2 h-2 bg-slate-400 rounded-full animate-pulse" style={{ animationDelay: "150ms" }} />
+        <span className="w-2 h-2 bg-slate-400 rounded-full animate-pulse" style={{ animationDelay: "300ms" }} />
       </div>
     </div>
   );

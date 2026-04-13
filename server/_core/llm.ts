@@ -209,14 +209,12 @@ const normalizeToolChoice = (
   return toolChoice;
 };
 
-const resolveApiUrl = () =>
-  ENV.forgeApiUrl && ENV.forgeApiUrl.trim().length > 0
-    ? `${ENV.forgeApiUrl.replace(/\/$/, "")}/v1/chat/completions`
-    : "https://forge.manus.im/v1/chat/completions";
+const VENICE_API_URL = "https://api.venice.ai/api/v1/chat/completions";
+const VENICE_MODEL = "llama-3.3-70b";
 
 const assertApiKey = () => {
-  if (!ENV.forgeApiKey) {
-    throw new Error("OPENAI_API_KEY is not configured");
+  if (!ENV.veniceApiKey) {
+    throw new Error("VENICE_API_KEY is not configured");
   }
 };
 
@@ -280,8 +278,13 @@ export async function invokeLLM(params: InvokeParams): Promise<InvokeResult> {
   } = params;
 
   const payload: Record<string, unknown> = {
-    model: "gemini-2.5-flash",
+    model: VENICE_MODEL,
     messages: messages.map(normalizeMessage),
+    max_tokens: 4096,
+    // Prevent Venice from injecting its own system prompt over Ether's persona prompt
+    venice_parameters: {
+      include_venice_system_prompt: false,
+    },
   };
 
   if (tools && tools.length > 0) {
@@ -296,11 +299,6 @@ export async function invokeLLM(params: InvokeParams): Promise<InvokeResult> {
     payload.tool_choice = normalizedToolChoice;
   }
 
-  payload.max_tokens = 32768
-  payload.thinking = {
-    "budget_tokens": 128
-  }
-
   const normalizedResponseFormat = normalizeResponseFormat({
     responseFormat,
     response_format,
@@ -312,11 +310,11 @@ export async function invokeLLM(params: InvokeParams): Promise<InvokeResult> {
     payload.response_format = normalizedResponseFormat;
   }
 
-  const response = await fetch(resolveApiUrl(), {
+  const response = await fetch(VENICE_API_URL, {
     method: "POST",
     headers: {
       "content-type": "application/json",
-      authorization: `Bearer ${ENV.forgeApiKey}`,
+      authorization: `Bearer ${ENV.veniceApiKey}`,
     },
     body: JSON.stringify(payload),
   });

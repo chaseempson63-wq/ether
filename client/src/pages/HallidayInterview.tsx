@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -6,7 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Loader2, ChevronRight, CheckCircle, AlertCircle, TrendingUp, ArrowLeft } from "lucide-react";
+import { Loader2, ChevronRight, CheckCircle, AlertCircle, TrendingUp, ArrowLeft, Save, MessageCircle } from "lucide-react";
 import { toast } from "sonner";
 import { useLocation } from "wouter";
 import { VoiceInput } from "@/components/VoiceInput";
@@ -27,11 +27,15 @@ const THRESHOLD_COLORS: Record<string, string> = {
   Complete: "bg-green-500",
 };
 
+type ConversationPhase = "answering" | "loading_followup" | "following_up" | "saving";
+
 export default function HallidayInterview() {
   const [, setLocation] = useLocation();
   const [selectedCategory, setSelectedCategory] = useState<string>("reasoning_decisions");
   const [response, setResponse] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [followUpResponse, setFollowUpResponse] = useState("");
+  const [followUpText, setFollowUpText] = useState("");
+  const [phase, setPhase] = useState<ConversationPhase>("answering");
   const [lastSpecificity, setLastSpecificity] = useState<number | null>(null);
   const [activeTab, setActiveTab] = useState<"interview" | "progress">("interview");
 
@@ -45,41 +49,65 @@ export default function HallidayInterview() {
   const { data: categoryBreakdown, refetch: refetchBreakdown } =
     trpc.halliday.getCategoryBreakdown.useQuery();
 
-  const submitResponseMutation = trpc.halliday.submitResponse.useMutation({
-    onSuccess: (data) => {
-      setResponse("");
-      setLastSpecificity(data.specificity);
+  const generateFollowUpMutation = trpc.halliday.generateFollowUp.useMutation();
+  const submitResponseMutation = trpc.halliday.submitResponse.useMutation();
+
+  const resetConversation = () => {
+    setResponse("");
+    setFollowUpResponse("");
+    setFollowUpText("");
+    setPhase("answering");
+  };
+
+  const handleRequestFollowUp = async () => {
+    if (!nextQuestion || !response.trim()) return;
+    setPhase("loading_followup");
+    try {
+      const result = await generateFollowUpMutation.mutateAsync({
+        questionText: nextQuestion.text,
+        userAnswer: response.trim(),
+      });
+      setFollowUpText(result.followUp);
+      setPhase("following_up");
+    } catch {
+      toast.error("Couldn't generate follow-up. Saving your answer as-is.");
+      await saveAnswer(response.trim());
+    }
+  };
+
+  const saveAnswer = async (fullContent: string) => {
+    if (!nextQuestion) return;
+    setPhase("saving");
+    try {
+      const result = await submitResponseMutation.mutateAsync({
+        questionId: nextQuestion.questionId,
+        response: fullContent,
+        responseType: "text",
+      });
+      setLastSpecificity(result.specificity);
+      resetConversation();
       refetchQuestion();
       refetchProgress();
       refetchBreakdown();
 
-      const pct = Math.round(data.specificity * 100);
-      if (pct >= 70) {
-        toast.success(`Strong answer! Specificity: ${pct}%`);
-      } else if (pct >= 40) {
-        toast.info(`Good answer. Specificity: ${pct}%. Try adding more personal details.`);
-      } else {
-        toast.warning(`Generic answer (${pct}%). The more specific, the better your AI becomes.`);
-      }
-    },
-    onError: () => {
-      toast.error("Failed to save response. Please try again.");
-    },
-  });
-
-  const handleSubmitResponse = async () => {
-    if (!nextQuestion || !response.trim()) return;
-    setIsSubmitting(true);
-    try {
-      await submitResponseMutation.mutateAsync({
-        questionId: nextQuestion.questionId,
-        response: response.trim(),
-        responseType: "text",
-      });
-    } finally {
-      setIsSubmitting(false);
+      const pct = Math.round(result.specificity * 100);
+      if (pct >= 70) toast.success(`Strong answer! Specificity: ${pct}%`);
+      else if (pct >= 40) toast.info(`Good answer. Specificity: ${pct}%.`);
+      else toast.warning(`Generic answer (${pct}%). More detail helps your AI.`);
+    } catch {
+      toast.error("Failed to save response.");
+      setPhase("answering");
     }
   };
+
+  const handleSaveWithFollowUp = () => {
+    const parts = [response.trim()];
+    if (followUpText) parts.push(`\n\n[Follow-up: ${followUpText}]`);
+    if (followUpResponse.trim()) parts.push(`\n\n${followUpResponse.trim()}`);
+    saveAnswer(parts.join(""));
+  };
+
+  const handleSaveAsIs = () => saveAnswer(response.trim());
 
   const getCategoryProgress = (catId: string) => {
     if (!categoryBreakdown) return 0;
@@ -87,20 +115,14 @@ export default function HallidayInterview() {
     return cat ? Math.round(cat.progress * 100) : 0;
   };
 
-  const getCategorySpecificity = (catId: string) => {
-    if (!categoryBreakdown) return 0;
-    const cat = categoryBreakdown.find((c) => c.categoryId === catId);
-    return cat ? Math.round(cat.avgSpecificity * 100) : 0;
-  };
-
   const weightedAccuracy = progress?.overallAccuracy ?? 0;
   const currentThreshold = progress?.currentThreshold as any;
-  const nextThreshold = progress?.nextThreshold as any;
+  const nextThresholdData = progress?.nextThreshold as any;
+  const isWorking = phase === "loading_followup" || phase === "saving";
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-800 p-6">
       <div className="max-w-4xl mx-auto">
-
         <Button
           variant="ghost"
           size="sm"
@@ -131,14 +153,14 @@ export default function HallidayInterview() {
         </div>
 
         {/* Threshold Progress Bar */}
-        {nextThreshold && (
+        {nextThresholdData && (
           <Card className="mb-6 bg-slate-800 border-slate-700">
             <CardContent className="pt-4 pb-4">
               <div className="flex justify-between text-sm mb-2">
                 <span className="text-slate-300">
-                  Progress to <strong className="text-white">{nextThreshold.label}</strong>
+                  Progress to <strong className="text-white">{nextThresholdData.label}</strong>
                 </span>
-                <span className="text-slate-400">{nextThreshold.description}</span>
+                <span className="text-slate-400">{nextThresholdData.description}</span>
               </div>
               <Progress
                 value={Math.round((progress?.progressToNextThreshold ?? 0) * 100)}
@@ -146,13 +168,12 @@ export default function HallidayInterview() {
               />
               <div className="flex justify-between text-xs text-slate-500 mt-1">
                 <span>{currentThreshold?.label}</span>
-                <span>{nextThreshold?.label}</span>
+                <span>{nextThresholdData?.label}</span>
               </div>
             </CardContent>
           </Card>
         )}
 
-        {/* Tabs: Interview / Progress */}
         <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="mb-6">
           <TabsList className="bg-slate-800 border border-slate-700">
             <TabsTrigger value="interview" className="data-[state=active]:bg-blue-600 text-white">
@@ -174,7 +195,7 @@ export default function HallidayInterview() {
                 return (
                   <button
                     key={cat.id}
-                    onClick={() => setSelectedCategory(cat.id)}
+                    onClick={() => { setSelectedCategory(cat.id); resetConversation(); }}
                     className={`p-3 rounded-lg border text-center transition-all ${
                       isSelected
                         ? "bg-blue-600 border-blue-500 text-white"
@@ -213,86 +234,155 @@ export default function HallidayInterview() {
                     {nextQuestion.text}
                   </CardTitle>
                 </CardHeader>
+
                 <CardContent className="p-12 space-y-5">
-                  <div className="relative">
-                    <Textarea
-                      placeholder="Be specific. Name people, places, dates. Generic answers train a generic AI. Your specificity is your identity..."
-                      value={response}
-                      onChange={(e) => setResponse(e.target.value)}
-                      className="min-h-36 pr-12 bg-slate-700 border-slate-600 text-white placeholder:text-slate-500 text-base"
-                    />
-                    <VoiceInput
-                      disabled={isSubmitting}
-                      className="absolute bottom-2 right-2"
-                      onTranscript={(text) =>
-                        setResponse((prev) => (prev ? prev + " " + text : text))
-                      }
-                    />
+                  {/* ─── Conversation thread ─── */}
+                  <div className="space-y-4">
+
+                    {/* Initial answer area (always visible) */}
+                    <div className="relative">
+                      <Textarea
+                        placeholder="Be specific. Name people, places, dates. Your specificity is your identity..."
+                        value={response}
+                        onChange={(e) => setResponse(e.target.value)}
+                        disabled={phase !== "answering"}
+                        className={`min-h-36 pr-12 bg-slate-700 border-slate-600 text-white placeholder:text-slate-500 text-base ${
+                          phase !== "answering" ? "opacity-70" : ""
+                        }`}
+                      />
+                      {phase === "answering" && (
+                        <VoiceInput
+                          className="absolute bottom-2 right-2"
+                          onTranscript={(text) =>
+                            setResponse((prev) => (prev ? prev + " " + text : text))
+                          }
+                        />
+                      )}
+                    </div>
+
+                    {/* Specificity preview (only during initial answering) */}
+                    {phase === "answering" && response.trim().length > 0 && (
+                      <div className="flex items-center gap-2 text-sm">
+                        <span className="text-slate-400">Answer quality:</span>
+                        {response.trim().split(/\s+/).length < 10 ? (
+                          <span className="text-red-400 flex items-center gap-1">
+                            <AlertCircle className="h-3 w-3" /> Too short — add more detail
+                          </span>
+                        ) : response.trim().split(/\s+/).length < 30 ? (
+                          <span className="text-yellow-400 flex items-center gap-1">
+                            <AlertCircle className="h-3 w-3" /> Getting there — add specifics
+                          </span>
+                        ) : (
+                          <span className="text-green-400 flex items-center gap-1">
+                            <CheckCircle className="h-3 w-3" /> Good length
+                          </span>
+                        )}
+                      </div>
+                    )}
+
+                    {/* AI follow-up loading */}
+                    {phase === "loading_followup" && (
+                      <div className="flex items-start gap-3 p-4 bg-blue-900/20 border border-blue-800/40 rounded-lg">
+                        <MessageCircle className="h-5 w-5 text-blue-400 mt-0.5 flex-shrink-0" />
+                        <div className="flex items-center gap-2 text-blue-300 text-sm">
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          Thinking of follow-up questions...
+                        </div>
+                      </div>
+                    )}
+
+                    {/* AI follow-up + user's follow-up response */}
+                    {(phase === "following_up" || phase === "saving") && followUpText && (
+                      <>
+                        <div className="flex items-start gap-3 p-4 bg-blue-900/20 border border-blue-800/40 rounded-lg">
+                          <MessageCircle className="h-5 w-5 text-blue-400 mt-0.5 flex-shrink-0" />
+                          <p className="text-blue-200 text-sm leading-relaxed">{followUpText}</p>
+                        </div>
+
+                        <div className="relative">
+                          <Textarea
+                            placeholder="Go deeper... share the why, the emotion, the specific details."
+                            value={followUpResponse}
+                            onChange={(e) => setFollowUpResponse(e.target.value)}
+                            disabled={phase === "saving"}
+                            className="min-h-24 pr-12 bg-slate-700 border-slate-600 text-white placeholder:text-slate-500 text-base"
+                          />
+                          {phase === "following_up" && (
+                            <VoiceInput
+                              className="absolute bottom-2 right-2"
+                              onTranscript={(text) =>
+                                setFollowUpResponse((prev) => (prev ? prev + " " + text : text))
+                              }
+                            />
+                          )}
+                        </div>
+                      </>
+                    )}
                   </div>
 
-                  {/* Specificity preview */}
-                  {response.trim().length > 0 && (
-                    <div className="flex items-center gap-2 text-sm">
-                      <span className="text-slate-400">Answer quality:</span>
-                      {response.trim().split(/\s+/).length < 10 ? (
-                        <span className="text-red-400 flex items-center gap-1">
-                          <AlertCircle className="h-3 w-3" /> Too short — add more detail
-                        </span>
-                      ) : response.trim().split(/\s+/).length < 30 ? (
-                        <span className="text-yellow-400 flex items-center gap-1">
-                          <AlertCircle className="h-3 w-3" /> Getting there — add specifics
-                        </span>
-                      ) : (
-                        <span className="text-green-400 flex items-center gap-1">
-                          <CheckCircle className="h-3 w-3" /> Good length
-                        </span>
-                      )}
+                  {/* ─── Action buttons ─── */}
+
+                  {/* Phase: answering — show "Continue" + "Save as is" */}
+                  {phase === "answering" && (
+                    <div className="flex gap-3">
+                      <Button
+                        onClick={handleRequestFollowUp}
+                        disabled={!response.trim()}
+                        className="flex-1 bg-blue-600 hover:bg-blue-700 text-base py-5"
+                      >
+                        Continue
+                        <ChevronRight className="ml-2 h-4 w-4" />
+                      </Button>
+                      <Button
+                        onClick={handleSaveAsIs}
+                        disabled={!response.trim()}
+                        variant="outline"
+                        className="border-slate-600 text-slate-300 hover:bg-slate-800 hover:text-white py-5"
+                      >
+                        <Save className="mr-2 h-4 w-4" />
+                        Save as is
+                      </Button>
                     </div>
                   )}
 
-                  {lastSpecificity !== null && (
+                  {/* Phase: following_up — show "Save & Next" */}
+                  {phase === "following_up" && (
+                    <Button
+                      onClick={handleSaveWithFollowUp}
+                      className="w-full bg-blue-600 hover:bg-blue-700 text-base py-5"
+                    >
+                      Save & Next Question
+                      <ChevronRight className="ml-2 h-4 w-4" />
+                    </Button>
+                  )}
+
+                  {/* Phase: saving */}
+                  {phase === "saving" && (
+                    <Button disabled className="w-full bg-blue-600 text-base py-5 opacity-70">
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Saving to your Digital Mind...
+                    </Button>
+                  )}
+
+                  {lastSpecificity !== null && phase === "answering" && (
                     <div className="text-sm text-slate-400">
                       Last answer specificity:{" "}
-                      <span
-                        className={
-                          lastSpecificity >= 0.7
-                            ? "text-green-400"
-                            : lastSpecificity >= 0.4
-                            ? "text-yellow-400"
-                            : "text-red-400"
-                        }
-                      >
+                      <span className={
+                        lastSpecificity >= 0.7 ? "text-green-400"
+                          : lastSpecificity >= 0.4 ? "text-yellow-400"
+                          : "text-red-400"
+                      }>
                         {Math.round(lastSpecificity * 100)}%
                       </span>
                     </div>
                   )}
-
-                  <Button
-                    onClick={handleSubmitResponse}
-                    disabled={!response.trim() || isSubmitting}
-                    className="w-full bg-blue-600 hover:bg-blue-700 text-base py-5"
-                  >
-                    {isSubmitting ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Saving to your Digital Mind...
-                      </>
-                    ) : (
-                      <>
-                        Save & Next Question
-                        <ChevronRight className="ml-2 h-4 w-4" />
-                      </>
-                    )}
-                  </Button>
                 </CardContent>
               </Card>
             ) : (
               <Card className="bg-slate-800 border-slate-700">
                 <CardContent className="pt-12 pb-12 text-center">
                   <CheckCircle className="h-12 w-12 text-green-400 mx-auto mb-4" />
-                  <h3 className="text-white text-xl font-semibold mb-2">
-                    Category Complete!
-                  </h3>
+                  <h3 className="text-white text-xl font-semibold mb-2">Category Complete!</h3>
                   <p className="text-slate-400 mb-4">
                     You've answered all questions in this category. Switch to another category to continue building your Digital Mind.
                   </p>
@@ -310,10 +400,9 @@ export default function HallidayInterview() {
             )}
           </TabsContent>
 
-          {/* Progress Tab */}
+          {/* Progress Tab (unchanged) */}
           <TabsContent value="progress">
             <div className="space-y-4">
-              {/* Threshold Bands */}
               <Card className="bg-slate-800 border-slate-700">
                 <CardHeader>
                   <CardTitle className="text-white text-lg">Identity Accuracy Thresholds</CardTitle>
@@ -343,22 +432,16 @@ export default function HallidayInterview() {
                               : "bg-slate-700/30 border border-slate-600"
                           }`}
                         >
-                          <div
-                            className={`w-3 h-3 rounded-full ${
-                              achieved
-                                ? "bg-green-400"
-                                : isCurrent
-                                ? "bg-blue-400 animate-pulse"
-                                : "bg-slate-500"
-                            }`}
-                          />
+                          <div className={`w-3 h-3 rounded-full ${
+                            achieved ? "bg-green-400"
+                              : isCurrent ? "bg-blue-400 animate-pulse"
+                              : "bg-slate-500"
+                          }`} />
                           <div className="flex-1">
                             <div className="flex items-center gap-2">
-                              <span
-                                className={`font-semibold ${
-                                  achieved ? "text-green-300" : isCurrent ? "text-blue-300" : "text-slate-400"
-                                }`}
-                              >
+                              <span className={`font-semibold ${
+                                achieved ? "text-green-300" : isCurrent ? "text-blue-300" : "text-slate-400"
+                              }`}>
                                 {threshold.label}
                               </span>
                               <span className="text-slate-500 text-sm">
@@ -376,7 +459,6 @@ export default function HallidayInterview() {
                 </CardContent>
               </Card>
 
-              {/* Category Breakdown */}
               <Card className="bg-slate-800 border-slate-700">
                 <CardHeader>
                   <CardTitle className="text-white text-lg">Category Breakdown</CardTitle>
@@ -386,7 +468,7 @@ export default function HallidayInterview() {
                   <div className="space-y-4">
                     {CATEGORIES.map((cat) => {
                       const breakdown = categoryBreakdown?.find((c) => c.categoryId === cat.id);
-                      const progress = breakdown?.progress ?? 0;
+                      const catProgress = breakdown?.progress ?? 0;
                       const specificity = breakdown?.avgSpecificity ?? 0;
                       const contribution = breakdown?.weightedContribution ?? 0;
                       return (
@@ -400,18 +482,16 @@ export default function HallidayInterview() {
                               </Badge>
                             </div>
                             <div className="text-right text-sm">
-                              <span className="text-slate-300">{Math.round(progress * 100)}% complete</span>
+                              <span className="text-slate-300">{Math.round(catProgress * 100)}% complete</span>
                               <span className="text-slate-500 ml-2">
                                 · {Math.round(specificity * 100)}% specificity
                               </span>
                             </div>
                           </div>
-                          <Progress value={Math.round(progress * 100)} className="h-2 mb-1" />
+                          <Progress value={Math.round(catProgress * 100)} className="h-2 mb-1" />
                           <div className="text-xs text-slate-500">
-                            Weighted contribution to accuracy:{" "}
-                            <span className="text-blue-400">
-                              {(contribution * 100).toFixed(1)}%
-                            </span>
+                            Weighted contribution:{" "}
+                            <span className="text-blue-400">{(contribution * 100).toFixed(1)}%</span>
                           </div>
                         </div>
                       );
@@ -420,7 +500,6 @@ export default function HallidayInterview() {
                 </CardContent>
               </Card>
 
-              {/* Stats */}
               <Card className="bg-slate-800 border-slate-700">
                 <CardContent className="pt-6">
                   <div className="grid grid-cols-3 gap-4 text-center">

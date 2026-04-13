@@ -1,7 +1,9 @@
 import { protectedProcedure, router } from "../_core/trpc";
 import { z } from "zod";
+import { TRPCError } from "@trpc/server";
 import { generatePersonaResponse } from "../personaEngine";
 import { processContent } from "../graphPipeline";
+import { checkRateLimit } from "../rateLimit";
 
 export const personaRouter = router({
   chat: protectedProcedure
@@ -10,6 +12,15 @@ export const personaRouter = router({
       legacyMode: z.boolean().optional(),
     }))
     .mutation(async ({ ctx, input }) => {
+      // Rate limit: 20 requests per minute per user
+      const rateCheck = checkRateLimit(`persona:${ctx.user.id}`, 20, 60_000);
+      if (!rateCheck.allowed) {
+        throw new TRPCError({
+          code: "TOO_MANY_REQUESTS",
+          message: `Rate limit exceeded. Try again in ${Math.ceil(rateCheck.retryAfterMs / 1000)} seconds.`,
+        });
+      }
+
       try {
         const response = await generatePersonaResponse(
           ctx.user.id,

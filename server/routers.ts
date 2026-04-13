@@ -10,6 +10,8 @@ import { getOrCreateProfile, createMemoryNode, getMemoryNodesByUserId, createMem
 import { personaRouter } from "./routers/persona";
 import { interviewRouter } from "./routers/interview";
 import { processContent } from "./graphPipeline";
+import { checkRateLimit } from "./rateLimit";
+import { TRPCError } from "@trpc/server";
 
 export const appRouter = router({
   system: systemRouter,
@@ -37,6 +39,12 @@ export const appRouter = router({
         tags: z.array(z.string()).optional(),
       }))
       .mutation(async ({ ctx, input }) => {
+        // Rate limit: 20 creates per minute per user
+        const rateCheck = checkRateLimit(`create:${ctx.user.id}`, 20, 60_000);
+        if (!rateCheck.allowed) {
+          throw new TRPCError({ code: "TOO_MANY_REQUESTS", message: `Rate limit exceeded. Try again in ${Math.ceil(rateCheck.retryAfterMs / 1000)}s.` });
+        }
+
         const isQuickMemory = input.sourceType === 'voice_memo'
           && input.tags?.includes('quick');
 
@@ -99,6 +107,11 @@ export const appRouter = router({
         tags: z.array(z.string()).optional(),
       }))
       .mutation(async ({ ctx, input }) => {
+        const rateCheck = checkRateLimit(`create:${ctx.user.id}`, 20, 60_000);
+        if (!rateCheck.allowed) {
+          throw new TRPCError({ code: "TOO_MANY_REQUESTS", message: `Rate limit exceeded. Try again in ${Math.ceil(rateCheck.retryAfterMs / 1000)}s.` });
+        }
+
         const contentParts = [
           `Decision: ${input.decision}`,
           `Reasoning: ${input.logicWhy}`,
@@ -155,6 +168,11 @@ export const appRouter = router({
         priority: z.number().optional(),
       }))
       .mutation(async ({ ctx, input }) => {
+        const rateCheck = checkRateLimit(`create:${ctx.user.id}`, 20, 60_000);
+        if (!rateCheck.allowed) {
+          throw new TRPCError({ code: "TOO_MANY_REQUESTS", message: `Rate limit exceeded. Try again in ${Math.ceil(rateCheck.retryAfterMs / 1000)}s.` });
+        }
+
         const contentParts = [input.valueStatement];
         if (input.beliefContext) contentParts.push(input.beliefContext);
 

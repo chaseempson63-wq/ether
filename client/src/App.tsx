@@ -3,6 +3,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/NotFound";
 import { Route, Switch } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
+import { AuthGuard } from "./components/AuthGuard";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import Home from "./pages/Home";
 import HallidayInterview from "./pages/HallidayInterview";
@@ -15,39 +16,38 @@ import QuickMemory from "./pages/QuickMemory";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 
+/** Wrap a component so it requires authentication */
+function Protected({ children }: { children: React.ReactNode }) {
+  return <AuthGuard>{children}</AuthGuard>;
+}
+
 function Router() {
-  // make sure to consider if you need authentication for certain routes
   return (
     <Switch>
+      {/* Public routes */}
       <Route path="/" component={Home} />
-      <Route path="/halliday" component={HallidayInterview} />
-      <Route path="/quick" component={QuickMemory} />
-      <Route path="/dashboard" component={Dashboard} />
-      <Route path="/reflection" component={DailyReflection} />
-      <Route path="/interview" component={InterviewMode} />
-      <Route path="/chat" component={PersonaChat} />
-      <Route path="/beneficiaries" component={BeneficiaryManagement} />
       <Route path="/login" component={Login} />
       <Route path="/register" component={Register} />
+
+      {/* Protected routes */}
+      <Route path="/halliday">{() => <Protected><HallidayInterview /></Protected>}</Route>
+      <Route path="/quick">{() => <Protected><QuickMemory /></Protected>}</Route>
+      <Route path="/dashboard">{() => <Protected><Dashboard /></Protected>}</Route>
+      <Route path="/reflection">{() => <Protected><DailyReflection /></Protected>}</Route>
+      <Route path="/interview">{() => <Protected><InterviewMode /></Protected>}</Route>
+      <Route path="/chat">{() => <Protected><PersonaChat /></Protected>}</Route>
+      <Route path="/beneficiaries">{() => <Protected><BeneficiaryManagement /></Protected>}</Route>
+
       <Route path="/404" component={NotFound} />
-      {/* Final fallback route */}
       <Route component={NotFound} />
     </Switch>
   );
 }
 
-// NOTE: About Theme
-// - First choose a default theme according to your design style (dark or light bg), than change color palette in index.css
-//   to keep consistent foreground/background color across components
-// - If you want to make theme switchable, pass `switchable` ThemeProvider and use `useTheme` hook
-
 function App() {
   return (
     <ErrorBoundary>
-      <ThemeProvider
-        defaultTheme="light"
-        // switchable
-      >
+      <ThemeProvider defaultTheme="light">
         <TooltipProvider>
           <Toaster />
           <Router />

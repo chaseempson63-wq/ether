@@ -25,6 +25,12 @@ export async function setupVite(app: Express, server: Server) {
   app.use("*", async (req, res, next) => {
     const url = req.originalUrl;
 
+    // Don't serve SPA shell for API or health routes
+    if (url.startsWith("/api/") || url === "/health") {
+      next();
+      return;
+    }
+
     try {
       const clientTemplate = path.resolve(
         import.meta.dirname,
@@ -61,8 +67,15 @@ export function serveStatic(app: Express) {
 
   app.use(express.static(distPath));
 
-  // fall through to index.html if the file doesn't exist
-  app.use("*", (_req, res) => {
+  // SPA fallback — serve index.html for client-side routes only.
+  // Skip API, health, and other server routes so they return proper errors
+  // instead of being swallowed by the SPA.
+  app.use("*", (_req, res, next) => {
+    const url = _req.originalUrl;
+    if (url.startsWith("/api/") || url === "/health") {
+      next();
+      return;
+    }
     res.sendFile(path.resolve(distPath, "index.html"));
   });
 }

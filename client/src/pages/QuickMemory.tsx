@@ -17,6 +17,7 @@ import {
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
 import { VoiceInput, useVoiceRecognition } from "@/components/VoiceInput";
+import { useCompanion } from "@/companion";
 
 const QUICK_TAG = "quick";
 
@@ -43,6 +44,7 @@ const hasQuickTag = (m: MemoryRow): boolean => {
 
 export default function QuickMemory() {
   const [, setLocation] = useLocation();
+  const { notifyMutation } = useCompanion();
   const [transcript, setTranscript] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [isSaving, setIsSaving] = useState(false);
@@ -85,6 +87,7 @@ export default function QuickMemory() {
         sourceType: "voice_memo",
         tags: [QUICK_TAG],
       });
+      notifyMutation("memory.create");
       toast.success("Saved to Ether");
       setTranscript("");
       await utils.memory.list.invalidate();

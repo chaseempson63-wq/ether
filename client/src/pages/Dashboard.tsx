@@ -3,12 +3,14 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { trpc } from "@/lib/trpc";
-import { Loader2, Calendar, Brain, Heart, ArrowLeft } from "lucide-react";
+import { useCompanion } from "@/companion";
+import { Loader2, Calendar, Brain, Heart, ArrowLeft, MessageCircle, MessageCircleOff } from "lucide-react";
 import { useLocation } from "wouter";
 
 export default function Dashboard() {
   const { user } = useAuth();
   const [, setLocation] = useLocation();
+  const companion = useCompanion();
 
   const memoriesQuery = trpc.memory.list.useQuery();
   const reasoningQuery = trpc.reasoning.list.useQuery();
@@ -28,15 +30,30 @@ export default function Dashboard() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-800 p-6">
       <div className="max-w-6xl mx-auto">
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => setLocation("/")}
-          className="mb-4 text-slate-400 hover:text-white hover:bg-slate-800"
-        >
-          <ArrowLeft className="h-4 w-4 mr-2" />
-          Home
-        </Button>
+        <div className="flex items-center justify-between mb-4">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setLocation("/")}
+            className="text-slate-400 hover:text-white hover:bg-slate-800"
+          >
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Home
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => companion.setEnabled(!companion.enabled)}
+            className="text-slate-500 hover:text-white hover:bg-slate-800"
+            title={companion.enabled ? "Disable companion" : "Enable companion"}
+          >
+            {companion.enabled ? (
+              <><MessageCircle className="h-4 w-4 mr-2" /> Companion on</>
+            ) : (
+              <><MessageCircleOff className="h-4 w-4 mr-2" /> Companion off</>
+            )}
+          </Button>
+        </div>
 
         <div className="mb-8">
           <h1 className="text-4xl font-bold text-white mb-2">Your Digital Mind Dashboard</h1>

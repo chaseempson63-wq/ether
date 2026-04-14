@@ -10,6 +10,7 @@ import { Loader2, ChevronRight, CheckCircle, AlertCircle, TrendingUp, ArrowLeft,
 import { toast } from "sonner";
 import { useLocation } from "wouter";
 import { VoiceInput } from "@/components/VoiceInput";
+import { useCompanion } from "@/companion";
 
 const CATEGORIES = [
   { id: "voice_language", name: "Voice & Language", weight: 20, emoji: "🗣️" },
@@ -31,6 +32,7 @@ type ConversationPhase = "answering" | "loading_followup" | "following_up" | "sa
 
 export default function HallidayInterview() {
   const [, setLocation] = useLocation();
+  const { notifyMutation } = useCompanion();
   const [selectedCategory, setSelectedCategory] = useState<string>("reasoning_decisions");
   const [response, setResponse] = useState("");
   const [followUpResponse, setFollowUpResponse] = useState("");
@@ -89,6 +91,7 @@ export default function HallidayInterview() {
         response: fullContent,
         responseType: "text",
       });
+      notifyMutation("halliday.submitResponse");
       setLastSpecificity(result.specificity);
       resetConversation();
       refetchQuestion();

@@ -13,10 +13,12 @@ import { Loader2, ArrowLeft, ImagePlus, X } from "lucide-react";
 import { useLocation } from "wouter";
 import { VoiceInput } from "@/components/VoiceInput";
 import { supabase } from "@/lib/supabase";
+import { useCompanion } from "@/companion";
 
 export default function DailyReflection() {
   const { user } = useAuth();
   const [, setLocation] = useLocation();
+  const { notifyMutation } = useCompanion();
   const [activeTab, setActiveTab] = useState<"memory" | "reasoning" | "values">("memory");
 
   // Memory form state
@@ -124,6 +126,7 @@ export default function DailyReflection() {
         tags: memoryTags ? memoryTags.split(",").map(t => t.trim()) : undefined,
         imageUrls,
       });
+      notifyMutation("memory.create");
       toast.success("Memory saved successfully");
       setMemoryContent("");
       setMemoryTags("");

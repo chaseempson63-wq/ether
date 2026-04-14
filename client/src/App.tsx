@@ -4,6 +4,7 @@ import NotFound from "@/pages/NotFound";
 import { Route, Switch } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { AuthGuard } from "./components/AuthGuard";
+import { CompanionProvider, CompanionBubble } from "./companion";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import Home from "./pages/Home";
 import HallidayInterview from "./pages/HallidayInterview";
@@ -17,9 +18,16 @@ import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Onboarding from "./pages/Onboarding";
 
-/** Wrap a component so it requires authentication */
+/** Wrap a component so it requires authentication + companion context */
 function Protected({ children }: { children: React.ReactNode }) {
-  return <AuthGuard>{children}</AuthGuard>;
+  return (
+    <AuthGuard>
+      <CompanionProvider>
+        {children}
+        <CompanionBubble />
+      </CompanionProvider>
+    </AuthGuard>
+  );
 }
 
 function Router() {

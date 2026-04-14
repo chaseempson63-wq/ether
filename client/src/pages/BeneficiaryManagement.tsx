@@ -10,10 +10,12 @@ import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 import { Loader2, Trash2, Plus, ArrowLeft } from "lucide-react";
 import { useLocation } from "wouter";
+import { useCompanion } from "@/companion";
 
 export default function BeneficiaryManagement() {
   const { user } = useAuth();
   const [, setLocation] = useLocation();
+  const { notifyMutation } = useCompanion();
   const [isAddingBeneficiary, setIsAddingBeneficiary] = useState(false);
   const [newBeneficiary, setNewBeneficiary] = useState({
     name: "",
@@ -41,6 +43,7 @@ export default function BeneficiaryManagement() {
 
     try {
       await createBeneficiaryMutation.mutateAsync(newBeneficiary);
+      notifyMutation("beneficiary.create");
       setNewBeneficiary({
         name: "",
         relationship: "",

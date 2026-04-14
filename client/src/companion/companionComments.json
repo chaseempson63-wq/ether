@@ -1,0 +1,80 @@
+{
+  "DASHBOARD_FIRST_VISIT": [
+    "We've got the basics down. Let's keep building.",
+    "Your digital mind is taking shape. Where to next?",
+    "First look at your mind. Not bad for a start.",
+    "Everything you add makes this more you."
+  ],
+  "DASHBOARD_RETURN": [
+    "Welcome back. What's on your mind?",
+    "Back again. Ready to go deeper?",
+    "Hey. Anything new to tell me?",
+    "Picking up where we left off."
+  ],
+  "HALLIDAY_QUESTION_COMPLETE": [
+    "Good one. That tells me a lot about how you think.",
+    "Noted. That's a piece of the puzzle.",
+    "That's the kind of stuff that makes you, you.",
+    "Interesting. I'm starting to see a pattern."
+  ],
+  "HALLIDAY_LAYER_COMPLETE": [
+    "A whole layer done. I'm starting to sound more like you.",
+    "That section is locked in. Getting sharper.",
+    "One more layer of you I understand now.",
+    "Nice. That whole area is filling in."
+  ],
+  "MEMORY_SAVED": [
+    "Got it. Stored.",
+    "Another piece of the picture.",
+    "That one's important. I can feel it.",
+    "Locked in. The graph just got richer."
+  ],
+  "MEMORY_STREAK": [
+    "You're on a roll. This is building fast.",
+    "Keep going. The more I know, the more I sound like you.",
+    "That's a streak. Your mind is getting detailed.",
+    "Momentum. This is when the good stuff surfaces."
+  ],
+  "PERSONA_CHAT_FIRST": [
+    "Let's see how well I know you so far.",
+    "Alright, test me. Ask me anything about you.",
+    "First conversation. Go easy on me.",
+    "This is where we find out how much I've learned."
+  ],
+  "PERSONA_CHAT_GOOD_RESULT": [
+    "That felt right. Had strong memories to pull from.",
+    "Nailed it. The graph is working.",
+    "Pretty close, right? Your data made that possible.",
+    "That answer had depth. Thanks to your memories."
+  ],
+  "PERSONA_CHAT_POOR_RESULT": [
+    "I'm fuzzy on that one. Tell me more about it?",
+    "Not my best. I need more memories on that topic.",
+    "That was a stretch. I could use more context there.",
+    "Thin on that one. Journal about it and I'll do better."
+  ],
+  "REFLECTION_FIRST": [
+    "Journaling is where the real depth comes from.",
+    "First reflection. This is how patterns emerge.",
+    "Reflections build the layers that quick memories can't.",
+    "Good call starting here. This is the deep work."
+  ],
+  "REFLECTION_STREAK": [
+    "Consistency builds the best minds.",
+    "Another day recorded. The patterns are getting clearer.",
+    "Regular reflections are the backbone of a digital mind.",
+    "The habit is forming. This is how you build something real."
+  ],
+  "BENEFICIARY_FIRST": [
+    "This is the legacy part. They'll be able to talk to your mind someday.",
+    "Someone who matters. They'll appreciate this.",
+    "First beneficiary. That's a big step.",
+    "Legacy access. This is what makes Ether different."
+  ],
+  "IDLE_LONG": [
+    "Still here? Take your time.",
+    "No rush. I'm not going anywhere.",
+    "Whenever you're ready. I'll be here.",
+    "Take a moment. The mind isn't going anywhere."
+  ]
+}

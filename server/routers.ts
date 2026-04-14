@@ -37,6 +37,7 @@ export const appRouter = router({
         content: z.string().min(1),
         sourceType: z.enum(['journal', 'voice_memo', 'passive_import', 'interview']),
         tags: z.array(z.string()).optional(),
+        imageUrls: z.array(z.string().url()).max(10).optional(),
       }))
       .mutation(async ({ ctx, input }) => {
         // Rate limit: 20 creates per minute per user
@@ -57,13 +58,17 @@ export const appRouter = router({
           graphSourceType = input.sourceType;
         }
 
+        const metadata: Record<string, unknown> = {};
+        if (input.tags) metadata.tags = input.tags;
+        if (input.imageUrls?.length) metadata.imageUrls = input.imageUrls;
+
         const node = await createMemoryNode(ctx.user.id, {
           nodeType: 'memory',
           hallidayLayer: 'memory_and_life_events',
           content: input.content,
           sourceType: graphSourceType,
           confidence: 1.0,
-          metadata: input.tags ? { tags: input.tags } : null,
+          metadata: Object.keys(metadata).length > 0 ? metadata : null,
         });
 
         // Background: extract entities, create edges, embed
@@ -91,6 +96,7 @@ export const appRouter = router({
           occurredAt: null,
           embedding: null,
           tags: meta?.tags ?? null,
+          imageUrls: (meta?.imageUrls as string[]) ?? null,
           createdAt: node.createdAt,
           updatedAt: node.updatedAt,
         };

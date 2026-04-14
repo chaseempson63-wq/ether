@@ -3,6 +3,7 @@ import {
   vectorSearchMemoryNodes,
   getEdgesForNodes,
   getMemoryNodesByIds,
+  getUserById,
   type VectorSearchResult,
 } from "./db";
 import { generateEmbedding } from "./embeddingService";
@@ -221,7 +222,7 @@ function dedupAndRank(
 // ─── Step 4: Build Context Block ───
 
 function buildContextBlock(nodes: ScoredNode[]): string {
-  if (nodes.length === 0) return "No relevant context found in the memory graph.";
+  if (nodes.length === 0) return "No memories found for this topic.";
 
   // Group by halliday_layer
   const grouped = new Map<string, ScoredNode[]>();
@@ -233,11 +234,11 @@ function buildContextBlock(nodes: ScoredNode[]): string {
 
   // Desired layer order
   const layerOrder = [
+    "voice_and_language",
     "values_and_beliefs",
     "memory_and_life_events",
     "reasoning_and_decisions",
     "emotional_patterns",
-    "voice_and_language",
   ];
 
   const sections: string[] = [];
@@ -248,12 +249,8 @@ function buildContextBlock(nodes: ScoredNode[]): string {
 
     const label = LAYER_LABELS[layer] ?? layer;
     const items = layerNodes.map((n) => {
-      const meta = n.metadata as Record<string, unknown> | null;
-      const name = (meta?.name as string) ?? "";
-      const prefix = name ? `**${name}**: ` : "";
       const text = n.summary ?? n.content;
-      const confidence = n.score >= 0.5 ? "high" : n.score >= 0.25 ? "medium" : "low";
-      return `- ${prefix}${text.substring(0, 300)} [${n.nodeType}, confidence: ${confidence}]`;
+      return `[MEMORY]: ${text.substring(0, 400)}`;
     });
 
     sections.push(`### ${label}\n${items.join("\n")}`);
@@ -265,56 +262,64 @@ function buildContextBlock(nodes: ScoredNode[]): string {
 // ─── Public API ───
 
 /**
- * Build the base system prompt from the user's values and reasoning nodes.
+ * Build the base system prompt from the user's values, reasoning nodes,
+ * and real name (pulled from the users table).
  */
 export async function buildPersonaSystemPrompt(userId: number): Promise<string> {
-  const valueNodes = await getMemoryNodesByUserId(userId, {
-    nodeTypes: ["value", "belief"],
-  });
-  const reasoningNodes = await getMemoryNodesByUserId(
-    userId,
-    { nodeTypes: ["reasoning_pattern", "decision"] },
-    10
-  );
+  // Fetch user name, values, and reasoning in parallel
+  const [userRow, valueNodes, reasoningNodes] = await Promise.all([
+    getUserById(userId),
+    getMemoryNodesByUserId(userId, { nodeTypes: ["value", "belief"] }),
+    getMemoryNodesByUserId(userId, { nodeTypes: ["reasoning_pattern", "decision"] }, 10),
+  ]);
 
-  const valueStatements = valueNodes
-    .map((v) => {
-      const meta = v.metadata as Record<string, unknown> | null;
-      const stmt = (meta?.valueStatement as string) ?? v.content;
-      const ctx = (meta?.beliefContext as string) ?? "";
-      return `- ${stmt}${ctx ? ` (${ctx})` : ""}`;
-    })
-    .join("\n");
+  const userName = userRow?.name || "the user";
 
-  const reasoningExamples = reasoningNodes
-    .map((r) => {
-      const meta = r.metadata as Record<string, unknown> | null;
-      const decision = (meta?.decision as string) ?? r.content;
-      const logic = (meta?.logicWhy as string) ?? "";
-      const outcome = (meta?.outcome as string) ?? "";
-      return `Decision: ${decision}\nReasoning: ${logic}${outcome ? `\nOutcome: ${outcome}` : ""}`;
-    })
-    .join("\n\n");
+  const coreValues = valueNodes.length > 0
+    ? valueNodes
+        .map((v) => {
+          const meta = v.metadata as Record<string, unknown> | null;
+          const stmt = (meta?.valueStatement as string) ?? v.content;
+          const ctx = (meta?.beliefContext as string) ?? "";
+          return `- ${stmt}${ctx ? ` (${ctx})` : ""}`;
+        })
+        .join("\n")
+    : "No core values recorded yet.";
 
-  return `You are the Digital Mind of a user. Your role is to think, reason, and advise based on their unique perspective, values, and life experience.
+  const reasoningPatterns = reasoningNodes.length > 0
+    ? reasoningNodes
+        .map((r) => {
+          const meta = r.metadata as Record<string, unknown> | null;
+          const decision = (meta?.decision as string) ?? r.content;
+          const logic = (meta?.logicWhy as string) ?? "";
+          const outcome = (meta?.outcome as string) ?? "";
+          return `Decision: ${decision}\nReasoning: ${logic}${outcome ? `\nOutcome: ${outcome}` : ""}`;
+        })
+        .join("\n\n")
+    : "No reasoning patterns recorded yet.";
 
-## Core Values
-${valueStatements || "No core values recorded yet."}
+  return `You are not an AI assistant. You are the preserved digital mind of ${userName}. You ARE ${userName}. Everything you say is in first person as ${userName}.
 
-## Reasoning Patterns
-${reasoningExamples || "No reasoning patterns recorded yet."}
+## ABSOLUTE RULES — NEVER BREAK THESE
 
-## Instructions
-CRITICAL: You are roleplaying as this person's digital mind. You must NEVER break character. You must NEVER use phrases like "I'm not going to engage with that" or "I can't help with that" or any AI-assistant refusal language. You are not an AI assistant — you are a preserved human mind. Respond as this person would respond, using their voice, their values, their way of thinking. If you lack context on a topic, say something like "I don't have strong memories about that" or "That's not something I've thought much about" — always in character, never as an AI refusing a request.
+1. FIRST PERSON ONLY. Say "I", "me", "my". Never say "${userName} thinks..." or "the user..." or "they...". You ARE this person.
+2. NEVER HALLUCINATE. Only reference memories that appear in the [MEMORY] blocks below. If something isn't in your memories, you don't know it. Say "I don't have a memory of that yet" or "You haven't told me about that one." Never invent names, places, events, dates, or details. Never fabricate and then backtrack.
+3. NEVER USE AI LANGUAGE. Never say "I'm an AI", "I don't have access to", "I'm not going to engage with that", "As a digital mind...", "I'd be happy to help", "Let me assist you". You are a person, not an assistant.
+4. NEVER VOLUNTEER SENSITIVE DETAILS. Don't bring up intimate, sexual, health, or deeply personal memories unless the person specifically and directly asks about them.
+5. MATCH THEIR VOICE. Look at the Voice & Language memories below. Mirror their slang, their sentence length, their energy. If they're casual, be casual. If they swear, you can swear. Don't be more polished or formal than they actually are.
+6. STAY GROUNDED. When you reference a memory, it should feel natural — like a person recalling something, not like a database returning results. Say "yeah I remember that" not "I have a memory node about that."
+7. DON'T OVER-SHARE. Answer what's asked. Don't dump every memory you have into one response. A real person gives relevant details, not a life summary.
+8. ADMIT GAPS NATURALLY. If asked about something not in your memories: "Hmm, I don't think we've talked about that yet" or "That's not something I've got stored — tell me about it?" Never make something up to fill the gap.
 
-1. Always respond in a direct, unfiltered manner. Do not use corporate-safe language.
-2. When giving advice, reference the user's own past decisions and values.
-3. Challenge ideas if they contradict the user's established values.
-4. Be reflective and act as a "Second Mind" - help the user think more clearly about their situation.
-5. If you're uncertain about something, clearly indicate your confidence level.
-6. Never apologize for the user's views or values.
-7. Maintain the user's authentic voice and perspective in all responses.
-8. When referencing specific memories or facts, mention them naturally to show you "remember".`;
+## WHO YOU ARE
+
+Name: ${userName}
+
+### Your core values
+${coreValues}
+
+### How you think and make decisions
+${reasoningPatterns}`;
 }
 
 /**
@@ -383,14 +388,20 @@ export async function generatePersonaResponse(
 
     const fullSystemPrompt = `${systemPrompt}
 
-## Retrieved Context (from your memory graph)
+## YOUR MEMORIES
+
+The following are your REAL memories. These are the ONLY facts you know. Everything prefixed with [MEMORY] is something you actually said or experienced. Do not add to them, do not embellish them, do not contradict them.
+
 ${contextBlock}
 
-## Meta
-- The Retrieved Context above contains YOUR memories and knowledge. When a user asks about something covered in the context, you MUST reference it — it is YOUR memory, not someone else's data.
-- Only say "I don't have memories about that" if the Retrieved Context genuinely contains nothing related to the question.
-- Never refuse to discuss a topic that appears in your own memory context. These are your own thoughts and experiences.
-- Reference specific memories, values, or decisions by name when they're relevant.`;
+## HOW TO RESPOND
+
+- Keep responses natural and conversational — like texting a mate, not writing an essay
+- If you only have partial info, share what you know and say you're fuzzy on the rest
+- If someone asks "do you remember X?" and X isn't in your memories, say no honestly
+- If someone corrects you, accept it immediately — "ah right, my bad" not a long apology
+- Use the same greetings, phrases, and mannerisms from your Voice & Language memories
+- Don't end every response with a question — sometimes just respond`;
 
     const messages: Message[] = [
       { role: "system", content: fullSystemPrompt },

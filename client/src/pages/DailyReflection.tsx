@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useCallback } from "react";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,9 +9,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
-import { Loader2, ArrowLeft } from "lucide-react";
+import { Loader2, ArrowLeft, ImagePlus, X } from "lucide-react";
 import { useLocation } from "wouter";
 import { VoiceInput } from "@/components/VoiceInput";
+import { supabase } from "@/lib/supabase";
 
 export default function DailyReflection() {
   const { user } = useAuth();
@@ -28,6 +29,69 @@ export default function DailyReflection() {
   const [logicWhy, setLogicWhy] = useState("");
   const [outcome, setOutcome] = useState("");
   const [reasoningTags, setReasoningTags] = useState("");
+
+  // Image upload state
+  const [imageFiles, setImageFiles] = useState<File[]>([]);
+  const [imagePreviews, setImagePreviews] = useState<string[]>([]);
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5 MB
+  const ACCEPTED_TYPES = ["image/jpeg", "image/png", "image/webp"];
+
+  const handleImageSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    const valid: File[] = [];
+    for (const file of files) {
+      if (!ACCEPTED_TYPES.includes(file.type)) {
+        toast.error(`${file.name}: only JPG, PNG, and WebP are allowed`);
+        continue;
+      }
+      if (file.size > MAX_FILE_SIZE) {
+        toast.error(`${file.name}: exceeds 5 MB limit`);
+        continue;
+      }
+      valid.push(file);
+    }
+    if (valid.length === 0) return;
+
+    setImageFiles((prev) => [...prev, ...valid]);
+    for (const file of valid) {
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        setImagePreviews((prev) => [...prev, ev.target?.result as string]);
+      };
+      reader.readAsDataURL(file);
+    }
+    // reset so the same file can be re-selected
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  }, []);
+
+  const removeImage = useCallback((index: number) => {
+    setImageFiles((prev) => prev.filter((_, i) => i !== index));
+    setImagePreviews((prev) => prev.filter((_, i) => i !== index));
+  }, []);
+
+  async function uploadImages(): Promise<string[]> {
+    const { data: { user: authUser } } = await supabase.auth.getUser();
+    if (!authUser) throw new Error("Not authenticated with Supabase");
+
+    const urls: string[] = [];
+    for (const file of imageFiles) {
+      const ext = file.name.split(".").pop() || "jpg";
+      const path = `${authUser.id}/${crypto.randomUUID()}.${ext}`;
+      const { error } = await supabase.storage
+        .from("reflections")
+        .upload(path, file, { contentType: file.type, upsert: false });
+      if (error) throw error;
+
+      const { data: urlData } = supabase.storage
+        .from("reflections")
+        .getPublicUrl(path);
+      urls.push(urlData.publicUrl);
+    }
+    return urls;
+  }
 
   // Values form state
   const [valueStatement, setValueStatement] = useState("");
@@ -46,16 +110,29 @@ export default function DailyReflection() {
     }
 
     try {
+      setIsUploading(true);
+
+      // Upload images to Supabase Storage first
+      let imageUrls: string[] | undefined;
+      if (imageFiles.length > 0) {
+        imageUrls = await uploadImages();
+      }
+
       await createMemoryMutation.mutateAsync({
         content: memoryContent,
         sourceType,
         tags: memoryTags ? memoryTags.split(",").map(t => t.trim()) : undefined,
+        imageUrls,
       });
       toast.success("Memory saved successfully");
       setMemoryContent("");
       setMemoryTags("");
+      setImageFiles([]);
+      setImagePreviews([]);
     } catch (error) {
-      toast.error("Failed to save memory");
+      toast.error(error instanceof Error ? error.message : "Failed to save memory");
+    } finally {
+      setIsUploading(false);
     }
   };
 
@@ -188,18 +265,65 @@ export default function DailyReflection() {
                   />
                 </div>
 
+                {/* Image attachments */}
+                <div className="space-y-2">
+                  <Label className="text-slate-300">Attach Images</Label>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                    multiple
+                    onChange={handleImageSelect}
+                    className="hidden"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="border-slate-600 text-slate-300 hover:bg-slate-700 hover:text-white"
+                  >
+                    <ImagePlus className="mr-2 h-4 w-4" />
+                    Add Photo
+                  </Button>
+                  <p className="text-xs text-slate-500">JPG, PNG, or WebP. Max 5 MB each.</p>
+
+                  {imagePreviews.length > 0 && (
+                    <div className="flex flex-wrap gap-3 mt-2">
+                      {imagePreviews.map((src, i) => (
+                        <div key={i} className="relative group">
+                          <img
+                            src={src}
+                            alt={`Attachment ${i + 1}`}
+                            className="h-20 w-20 rounded-lg object-cover border border-slate-600"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => removeImage(i)}
+                            className="absolute -top-2 -right-2 bg-red-600 hover:bg-red-500 rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
+                          >
+                            <X className="h-3 w-3 text-white" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
                 <Button
                   onClick={handleMemorySubmit}
-                  disabled={createMemoryMutation.isPending}
+                  disabled={createMemoryMutation.isPending || isUploading}
                   className="w-full bg-blue-600 hover:bg-blue-700"
                 >
-                  {createMemoryMutation.isPending ? (
+                  {createMemoryMutation.isPending || isUploading ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Saving...
+                      {isUploading ? "Uploading images..." : "Saving..."}
                     </>
                   ) : (
-                    "Save Memory"
+                    imageFiles.length > 0
+                      ? `Save Memory with ${imageFiles.length} ${imageFiles.length === 1 ? "image" : "images"}`
+                      : "Save Memory"
                   )}
                 </Button>
               </CardContent>

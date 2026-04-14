@@ -8,7 +8,39 @@ const t = initTRPC.context<TrpcContext>().create({
 });
 
 export const router = t.router;
-export const publicProcedure = t.procedure;
+
+// ─── Error logging middleware ───
+// Captures procedure name, user ID, and error details for every failure.
+// Structured console.error output — swap for Sentry/Datadog later.
+
+const errorLogger = t.middleware(async ({ path, ctx, next }) => {
+  const result = await next();
+
+  if (!result.ok) {
+    const userId = ctx.user?.id ?? "anon";
+    const error = result.error;
+
+    console.error(
+      JSON.stringify({
+        level: "error",
+        procedure: path,
+        userId,
+        code: error.code,
+        message: error.message,
+        timestamp: new Date().toISOString(),
+        // Include cause chain if present
+        ...(error.cause ? { cause: String(error.cause) } : {}),
+      })
+    );
+  }
+
+  return result;
+});
+
+// All procedures go through the error logger
+const loggedProcedure = t.procedure.use(errorLogger);
+
+export const publicProcedure = loggedProcedure;
 
 const requireUser = t.middleware(async opts => {
   const { ctx, next } = opts;
@@ -25,9 +57,9 @@ const requireUser = t.middleware(async opts => {
   });
 });
 
-export const protectedProcedure = t.procedure.use(requireUser);
+export const protectedProcedure = loggedProcedure.use(requireUser);
 
-export const adminProcedure = t.procedure.use(
+export const adminProcedure = loggedProcedure.use(
   t.middleware(async opts => {
     const { ctx, next } = opts;
 

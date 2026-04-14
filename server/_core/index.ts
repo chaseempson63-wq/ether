@@ -6,7 +6,7 @@ import { createExpressMiddleware } from "@trpc/server/adapters/express";
 import { appRouter } from "../routers";
 import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
-import { ENV } from "./env";
+import { ENV, validateEnv } from "./env";
 import { getDb } from "../db";
 import { sql } from "drizzle-orm";
 
@@ -30,6 +30,9 @@ async function findAvailablePort(startPort: number = 3000): Promise<number> {
 }
 
 async function startServer() {
+  // Fail fast if required env vars are missing
+  validateEnv();
+
   const app = express();
   const server = createServer(app);
   // Configure body parser with larger size limit for file uploads

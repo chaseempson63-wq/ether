@@ -51,7 +51,8 @@ export default function Register() {
       return;
     }
 
-    window.location.href = "/";
+    // New users always go straight to onboarding
+    window.location.href = "/onboarding";
   };
 
   if (checkEmail) {

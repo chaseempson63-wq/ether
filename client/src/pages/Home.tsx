@@ -1,12 +1,28 @@
 import { useAuth } from "@/_core/hooks/useAuth";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Brain, BookOpen, MessageSquare, Zap } from "lucide-react";
 import { useLocation } from "wouter";
+import { useEffect } from "react";
 
 export default function Home() {
-  const { user, isAuthenticated, logout } = useAuth();
+  const { isAuthenticated, loading } = useAuth();
   const [, setLocation] = useLocation();
+
+  // Authenticated users should never see the landing page —
+  // redirect to /dashboard (AuthGuard there handles onboarding check)
+  useEffect(() => {
+    if (!loading && isAuthenticated) {
+      setLocation("/dashboard");
+    }
+  }, [loading, isAuthenticated, setLocation]);
+
+  // Show nothing while auth is loading or redirecting
+  if (loading || isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-800 flex items-center justify-center">
+        <div className="animate-pulse text-slate-400 text-sm">Loading...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-800 text-white">
@@ -20,107 +36,26 @@ export default function Home() {
           </p>
         </div>
 
-        {!isAuthenticated ? (
-          <div className="text-center mb-16">
-            <Button
-              onClick={() => setLocation("/register")}
-              size="lg"
-              className="bg-blue-600 hover:bg-blue-700"
-            >
-              Get Started
-            </Button>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
-            <Card
-              className="bg-slate-800 border-slate-700 cursor-pointer hover:bg-slate-700 transition border-2 border-blue-500"
-              onClick={() => setLocation("/halliday")}
-            >
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-white">
-                  <Zap className="h-5 w-5 text-blue-400" />
-                  Halliday Interview
-                </CardTitle>
-                <CardDescription className="text-slate-400">Build your Digital Mind</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <p className="text-slate-300 text-sm">Answer 140+ questions across 5 categories to teach the AI how you think and feel.</p>
-              </CardContent>
-            </Card>
-
-            <Card
-              className="bg-slate-800 border-slate-700 cursor-pointer hover:bg-slate-700 transition"
-              onClick={() => setLocation("/quick")}
-            >
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-white">
-                  <Zap className="h-5 w-5 text-blue-400" />
-                  Quick Memory
-                </CardTitle>
-                <CardDescription className="text-slate-400">Capture a thought before it's gone.</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <p className="text-slate-300 text-sm">One tap. Speak. Saved. The fastest way to put something into Ether.</p>
-              </CardContent>
-            </Card>
-
-            <Card
-              className="bg-slate-800 border-slate-700 cursor-pointer hover:bg-slate-700 transition"
-              onClick={() => setLocation("/dashboard")}
-            >
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-white">
-                  <Brain className="h-5 w-5" />
-                  Dashboard
-                </CardTitle>
-                <CardDescription className="text-slate-400">View your memories and patterns</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <p className="text-slate-300 text-sm">See your captured thoughts, decisions, and core values at a glance.</p>
-              </CardContent>
-            </Card>
-
-            <Card
-              className="bg-slate-800 border-slate-700 cursor-pointer hover:bg-slate-700 transition"
-              onClick={() => setLocation("/reflection")}
-            >
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-white">
-                  <BookOpen className="h-5 w-5" />
-                  Daily Reflection
-                </CardTitle>
-                <CardDescription className="text-slate-400">Capture your thoughts</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <p className="text-slate-300 text-sm">Record memories, decisions, and values to build your Digital Mind.</p>
-              </CardContent>
-            </Card>
-
-            <Card
-              className="bg-slate-800 border-slate-700 cursor-pointer hover:bg-slate-700 transition"
-              onClick={() => setLocation("/chat")}
-            >
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-white">
-                  <MessageSquare className="h-5 w-5" />
-                  Talk to Yourself
-                </CardTitle>
-                <CardDescription className="text-slate-400">Chat with your Digital Mind</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <p className="text-slate-300 text-sm">Get advice based on your own reasoning and values.</p>
-              </CardContent>
-            </Card>
-          </div>
-        )}
+        <div className="text-center mb-16 space-x-4">
+          <Button
+            onClick={() => setLocation("/register")}
+            size="lg"
+            className="bg-blue-600 hover:bg-blue-700"
+          >
+            Get Started
+          </Button>
+          <Button
+            onClick={() => setLocation("/login")}
+            size="lg"
+            variant="outline"
+            className="border-slate-600 text-slate-300 hover:bg-slate-800 hover:text-white"
+          >
+            Log in
+          </Button>
+        </div>
 
         <div className="text-center text-slate-400 text-sm mt-16">
-          {isAuthenticated && (
-            <Button variant="ghost" onClick={logout} className="text-slate-400 hover:text-white">
-              Logout
-            </Button>
-          )}
-          <p className="mt-4">The End of Disappearing. Building the lineage of human intelligence.</p>
+          <p>The End of Disappearing. Building the lineage of human intelligence.</p>
         </div>
       </div>
     </div>

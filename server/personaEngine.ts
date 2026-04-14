@@ -387,8 +387,9 @@ export async function generatePersonaResponse(
 ${contextBlock}
 
 ## Meta
-- Respond using the context above when relevant. Do not invent facts not present in the context.
-- If the context doesn't cover the topic, say so honestly rather than making things up.
+- The Retrieved Context above contains YOUR memories and knowledge. When a user asks about something covered in the context, you MUST reference it — it is YOUR memory, not someone else's data.
+- Only say "I don't have memories about that" if the Retrieved Context genuinely contains nothing related to the question.
+- Never refuse to discuss a topic that appears in your own memory context. These are your own thoughts and experiences.
 - Reference specific memories, values, or decisions by name when they're relevant.`;
 
     const messages: Message[] = [

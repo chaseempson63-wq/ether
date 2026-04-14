@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ether System Map</title>
+<style>
+  :root { --bg: #0f172a; --surface: #1e293b; --border: #334155; --text: #e2e8f0; --dim: #94a3b8; --blue: #3b82f6; --green: #22c55e; --amber: #f59e0b; --red: #ef4444; --purple: #a855f7; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; padding: 2rem; max-width: 1400px; margin: 0 auto; }
+  h1 { font-size: 2rem; margin-bottom: 0.5rem; }
+  h2 { font-size: 1.5rem; margin: 2.5rem 0 1rem; padding-bottom: 0.5rem; border-bottom: 1px solid var(--border); }
+  h3 { font-size: 1.15rem; margin: 1.5rem 0 0.75rem; color: var(--blue); }
+  h4 { font-size: 1rem; margin: 1rem 0 0.5rem; color: var(--dim); text-transform: uppercase; letter-spacing: 0.05em; font-size: 0.8rem; }
+  p, li { color: var(--dim); }
+  .subtitle { color: var(--dim); margin-bottom: 2rem; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 1.25rem; margin-bottom: 1rem; }
+  .card-title { font-weight: 600; margin-bottom: 0.5rem; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 1rem; }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+  table { width: 100%; border-collapse: collapse; margin: 0.75rem 0; font-size: 0.9rem; }
+  th, td { padding: 0.5rem 0.75rem; text-align: left; border-bottom: 1px solid var(--border); }
+  th { color: var(--dim); font-weight: 600; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; }
+  td { color: var(--text); }
+  code { background: #0f172a; padding: 0.15rem 0.4rem; border-radius: 4px; font-size: 0.85rem; color: var(--blue); }
+  .tag { display: inline-block; padding: 0.15rem 0.5rem; border-radius: 4px; font-size: 0.75rem; font-weight: 600; margin-right: 0.25rem; }
+  .tag-green { background: rgba(34,197,94,0.15); color: var(--green); }
+  .tag-amber { background: rgba(245,158,11,0.15); color: var(--amber); }
+  .tag-red { background: rgba(239,68,68,0.15); color: var(--red); }
+  .tag-blue { background: rgba(59,130,246,0.15); color: var(--blue); }
+  .tag-purple { background: rgba(168,85,247,0.15); color: var(--purple); }
+  .tag-dim { background: rgba(148,163,184,0.15); color: var(--dim); }
+  ul { padding-left: 1.25rem; margin: 0.5rem 0; }
+  li { margin-bottom: 0.25rem; }
+  .flow { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; margin: 0.75rem 0; }
+  .flow-step { background: var(--surface); border: 1px solid var(--border); padding: 0.4rem 0.75rem; border-radius: 6px; font-size: 0.85rem; white-space: nowrap; }
+  .flow-arrow { color: var(--dim); font-size: 1.2rem; }
+  .arch-diagram { background: #0f172a; border: 1px solid var(--border); border-radius: 8px; padding: 2rem; margin: 1rem 0; font-family: monospace; font-size: 0.8rem; line-height: 1.8; overflow-x: auto; white-space: pre; color: var(--dim); }
+  .arch-diagram .highlight { color: var(--blue); font-weight: bold; }
+  .arch-diagram .service { color: var(--green); }
+  .arch-diagram .external { color: var(--amber); }
+  .arch-diagram .data { color: var(--purple); }
+  .risk { border-left: 3px solid var(--red); }
+  .gap { border-left: 3px solid var(--amber); }
+  .inefficiency { border-left: 3px solid var(--purple); }
+  .severity { font-weight: 700; }
+  .sev-high { color: var(--red); }
+  .sev-med { color: var(--amber); }
+  .sev-low { color: var(--dim); }
+  @media (max-width: 768px) { .grid-2 { grid-template-columns: 1fr; } body { padding: 1rem; } }
+</style>
+</head>
+<body>
+
+<h1>Ether System Map</h1>
+<p class="subtitle">Single source of truth &mdash; how every piece connects, where data flows, what breaks. Updated 2026-04-14.</p>
+
+<!-- ============================================================ -->
+<h2>1. High-Level Architecture</h2>
+<!-- ============================================================ -->
+
+<div class="arch-diagram">
+<span class="highlight">                            ETHER ARCHITECTURE</span>
+
+  <span class="highlight">CLIENT (Browser)</span>                    <span class="highlight">SERVER (Express + Node.js)</span>                <span class="highlight">EXTERNAL SERVICES</span>
+  ==================                    ============================                ==================
+
+  React 19 + Tailwind                  Express 4.x                                <span class="external">Supabase Auth</span>
+  wouter (routing)                      |                                           Token verify
+  @tanstack/react-query                 +-- <span class="service">/api/trpc</span> ----+                       (getUser)
+  @trpc/react-query                     |              |                            |
+  @supabase/supabase-js                 |         <span class="service">tRPC Router</span>                     <span class="external">Supabase Pooler</span>
+       |                                |         (36 procedures)                   PostgreSQL + pgvector
+       |  Authorization: Bearer         |              |                            (13 tables)
+       +------------------------------->+         <span class="service">Drizzle ORM</span>                         |
+       |                                |              |                            |
+       |  JSON responses                |         <span class="data">server/db.ts</span> ------------------>+
+       +<-------------------------------+              |
+       |                                |         <span class="service">Persona Engine</span>                  <span class="external">Venice AI</span>
+       |                                |         (graph-aware RAG)                 |-- Chat: llama-3.3-70b
+  <span class="highlight">Pages:</span>                                |              |                        |-- Embed: bge-m3 (1024d)
+  / Home                                |         <span class="service">Graph Pipeline</span>                      |
+  /halliday Interview                   |         (entity extraction)               |
+  /chat     Persona Chat                |         (fire-and-forget) --------------->+
+  /dashboard Stats                      |
+  /reflection Daily Entry               +-- <span class="service">Vite middleware</span> (dev)
+  /quick    Quick Memory                    OR
+  /login    Auth                            <span class="service">static dist/public</span> (prod)
+  /register Auth
+
+<span class="highlight">DATA FLOW:</span>
+
+  User Input --> tRPC mutation --> <span class="data">memory_nodes</span> (write) --> <span class="service">processContent()</span> [background]
+                                                              |
+                                                   +----------+----------+
+                                                   |                     |
+                                           <span class="external">Venice LLM</span>            <span class="external">Venice Embed</span>
+                                           extract entities      generate vectors
+                                                   |                     |
+                                              <span class="data">memory_nodes</span>         <span class="data">memory_nodes</span>
+                                              (create/update)      (update embedding)
+                                                   |
+                                              <span class="data">memory_edges</span>
+                                              (create relationships)
+
+  User Query --> <span class="external">Venice Embed</span> --> pgvector cosine search --> 2-hop BFS --> rank --> <span class="external">Venice LLM</span> --> response
+                 (query vector)    (<span class="data">memory_nodes</span>)          (<span class="data">memory_edges</span>)           (with context)
+</div>
+
+<!-- ============================================================ -->
+<h2>2. System Breakdown</h2>
+<!-- ============================================================ -->
+
+<h3>2.1 External Services</h3>
+<div class="grid">
+  <div class="card">
+    <div class="card-title">Supabase Auth</div>
+    <p>Email/password authentication. Client-side SDK handles login/register. Server verifies tokens via <code>supabaseAdmin.auth.getUser(token)</code>. Auto-provisions local user row on first login.</p>
+    <h4>Config</h4>
+    <p><code>VITE_SUPABASE_URL</code> + <code>VITE_SUPABASE_ANON_KEY</code></p>
+  </div>
+  <div class="card">
+    <div class="card-title">PostgreSQL (Supabase Pooler)</div>
+    <p>13 tables via Drizzle ORM. pgvector extension for 1024-dimensional HNSW-indexed embeddings. Session-mode pooler on port 5432.</p>
+    <h4>Config</h4>
+    <p><code>DATABASE_URL</code> (pooler connection string, <code>prepare: false</code>)</p>
+  </div>
+  <div class="card">
+    <div class="card-title">Venice AI &mdash; Chat</div>
+    <p>llama-3.3-70b via OpenAI-compatible API. Used for persona responses, entity extraction, follow-up questions, title generation. <code>venice_parameters.include_venice_system_prompt: false</code> on every call.</p>
+    <h4>Config</h4>
+    <p><code>VENICE_API_KEY</code> &rarr; <code>https://api.venice.ai/api/v1/chat/completions</code></p>
+  </div>
+  <div class="card">
+    <div class="card-title">Venice AI &mdash; Embeddings</div>
+    <p>BGE-M3 model, 1024 dimensions. Used to embed memory nodes and user queries for vector search.</p>
+    <h4>Config</h4>
+    <p><code>VENICE_API_KEY</code> &rarr; <code>https://api.venice.ai/api/v1/embeddings</code></p>
+  </div>
+</div>
+
+<h3>2.2 Server Layer</h3>
+
+<h4>Boot Sequence</h4>
+<div class="flow">
+  <span class="flow-step">dotenv loads .env</span>
+  <span class="flow-arrow">&rarr;</span>
+  <span class="flow-step">Express app created</span>
+  <span class="flow-arrow">&rarr;</span>
+  <span class="flow-step">JSON body parser (50MB)</span>
+  <span class="flow-arrow">&rarr;</span>
+  <span class="flow-step">tRPC at /api/trpc</span>
+  <span class="flow-arrow">&rarr;</span>
+  <span class="flow-step">Vite middleware (dev) OR static files (prod)</span>
+  <span class="flow-arrow">&rarr;</span>
+  <span class="flow-step">Listen on PORT || 3000</span>
+</div>
+
+<h4>tRPC Procedure Count</h4>
+<table>
+  <tr><th>Router</th><th>Procedures</th><th>Auth</th><th>Key Tables</th></tr>
+  <tr><td>persona</td><td>1 mutation</td><td>protected</td><td>memory_nodes, memory_edges (read + Venice AI)</td></tr>
+  <tr><td>halliday</td><td>4 queries, 2 mutations</td><td>protected (+ 1 with LLM)</td><td>halliday_questions, halliday_responses, halliday_progress, memories</td></tr>
+  <tr><td>conversations</td><td>2 queries, 4 mutations</td><td>protected (+ 1 with LLM)</td><td>conversations, chat_messages</td></tr>
+  <tr><td>memory</td><td>1 query, 1 mutation</td><td>protected</td><td>memory_nodes</td></tr>
+  <tr><td>reasoning</td><td>1 query, 1 mutation</td><td>protected</td><td>memory_nodes</td></tr>
+  <tr><td>values</td><td>1 query, 1 mutation</td><td>protected</td><td>memory_nodes</td></tr>
+  <tr><td>graph</td><td>2 queries, 1 mutation</td><td>protected</td><td>memory_nodes, memory_edges</td></tr>
+  <tr><td>beneficiary</td><td>3 queries, 2 mutations</td><td>protected</td><td>beneficiaries, memories</td></tr>
+  <tr><td>interview</td><td>2 queries, 1 mutation</td><td>protected</td><td>interview_sessions</td></tr>
+  <tr><td>profile</td><td>1 query, 1 mutation</td><td>protected</td><td>profiles</td></tr>
+  <tr><td>auth</td><td>1 query, 1 mutation</td><td>public</td><td>none</td></tr>
+  <tr><td>system</td><td>1 query, 1 mutation</td><td>public / admin</td><td>none</td></tr>
+  <tr><td colspan="4"><strong>Total: 36 procedures</strong> (33 protected, 2 public, 1 admin)</td></tr>
+</table>
+
+<h4>AI Call Map</h4>
+<table>
+  <tr><th>Trigger</th><th>Type</th><th>Service</th><th>Sync/Async</th></tr>
+  <tr><td>persona.chat &rarr; generatePersonaResponse</td><td>Chat</td><td>Venice llama-3.3-70b</td><td><span class="tag tag-blue">sync</span> awaited, returned to user</td></tr>
+  <tr><td>persona.chat &rarr; retrieveRelevantContext</td><td>Embedding</td><td>Venice bge-m3</td><td><span class="tag tag-blue">sync</span> needed for vector search</td></tr>
+  <tr><td>halliday.generateFollowUp</td><td>Chat</td><td>Venice llama-3.3-70b</td><td><span class="tag tag-blue">sync</span> awaited, returned</td></tr>
+  <tr><td>conversations.generateTitle</td><td>Chat</td><td>Venice llama-3.3-70b</td><td><span class="tag tag-blue">sync</span> awaited, returned</td></tr>
+  <tr><td>processContent &rarr; extractEntities</td><td>Chat</td><td>Venice llama-3.3-70b</td><td><span class="tag tag-purple">fire-and-forget</span></td></tr>
+  <tr><td>processContent &rarr; proposeEdges</td><td>Chat</td><td>Venice llama-3.3-70b</td><td><span class="tag tag-purple">fire-and-forget</span></td></tr>
+  <tr><td>processContent &rarr; embedNodes</td><td>Embedding</td><td>Venice bge-m3</td><td><span class="tag tag-purple">fire-and-forget</span></td></tr>
+</table>
+<p>Every <code>memory.create</code>, <code>reasoning.create</code>, <code>values.create</code>, <code>halliday.submitResponse</code>, and <code>persona.chat</code> fires <code>processContent()</code> in the background &mdash; 3 AI calls per invocation (extract + edges + embed).</p>
+
+<h3>2.3 Database Schema</h3>
+
+<h4>Active Tables (graph architecture)</h4>
+<table>
+  <tr><th>Table</th><th>PK</th><th>Key Columns</th><th>Notes</th></tr>
+  <tr><td><code>users</code></td><td>serial</td><td>open_id (Supabase UUID), email, role</td><td>Auto-provisioned on first auth</td></tr>
+  <tr><td><code>memory_nodes</code></td><td>uuid</td><td>user_id, node_type (11 types), halliday_layer (5 layers), content, embedding (vector 1024), source_type, metadata (jsonb)</td><td>HNSW index on embedding</td></tr>
+  <tr><td><code>memory_edges</code></td><td>uuid</td><td>source_node_id, target_node_id, relationship_type, strength, evidence</td><td>Indexed on both FK columns</td></tr>
+  <tr><td><code>conversations</code></td><td>serial</td><td>user_id, title</td><td></td></tr>
+  <tr><td><code>chat_messages</code></td><td>serial</td><td>conversation_id, role, content, truthfulness_tag, source_memories (jsonb)</td><td></td></tr>
+  <tr><td><code>halliday_questions</code></td><td>serial</td><td>question_id (unique), category, section, text, weight</td><td>145 seeded questions</td></tr>
+  <tr><td><code>halliday_responses</code></td><td>serial</td><td>user_id, question_id, response, specificity</td><td></td></tr>
+  <tr><td><code>halliday_progress</code></td><td>serial</td><td>user_id (unique), per-category progress, overall_accuracy</td><td></td></tr>
+  <tr><td><code>beneficiaries</code></td><td>serial</td><td>user_id, name, access_level (full/restricted/legacy_only)</td><td></td></tr>
+  <tr><td><code>profiles</code></td><td>serial</td><td>user_id (unique), bio, headline</td><td></td></tr>
+</table>
+
+<h4>Legacy Tables (superseded by memory_nodes, still in schema)</h4>
+<table>
+  <tr><th>Table</th><th>Status</th><th>Still Written By</th></tr>
+  <tr><td><code>memories</code></td><td><span class="tag tag-amber">partially active</span></td><td>halliday.submitResponse dual-writes here + memory_nodes</td></tr>
+  <tr><td><code>reasoning_patterns</code></td><td><span class="tag tag-red">dead</span></td><td>Nothing writes here</td></tr>
+  <tr><td><code>core_values</code></td><td><span class="tag tag-red">dead</span></td><td>Nothing writes here</td></tr>
+  <tr><td><code>interview_sessions</code></td><td><span class="tag tag-dim">low use</span></td><td>interview.saveResponse (separate from Halliday)</td></tr>
+</table>
+
+<h3>2.4 Client Pages</h3>
+<table>
+  <tr><th>Route</th><th>Component</th><th>Purpose</th><th>Key Procedures</th></tr>
+  <tr><td><code>/</code></td><td>Home</td><td>Landing / nav</td><td>none</td></tr>
+  <tr><td><code>/login</code></td><td>Login</td><td>Supabase email/password</td><td>Supabase Auth SDK directly</td></tr>
+  <tr><td><code>/register</code></td><td>Register</td><td>Supabase signup</td><td>Supabase Auth SDK directly</td></tr>
+  <tr><td><code>/halliday</code></td><td>HallidayInterview</td><td>145-question identity interview</td><td>halliday.* (6 procedures)</td></tr>
+  <tr><td><code>/chat</code></td><td>PersonaChat</td><td>Talk to your Digital Mind</td><td>persona.chat, conversations.* (8 procedures)</td></tr>
+  <tr><td><code>/dashboard</code></td><td>Dashboard</td><td>Memory timeline, stats</td><td>memory.list, reasoning.list, values.list, profile.get</td></tr>
+  <tr><td><code>/reflection</code></td><td>DailyReflection</td><td>Journal entries</td><td>memory.create, reasoning.create, values.create</td></tr>
+  <tr><td><code>/quick</code></td><td>QuickMemory</td><td>Voice-first memory capture</td><td>memory.list, memory.create</td></tr>
+  <tr><td><code>/beneficiaries</code></td><td>BeneficiaryManagement</td><td>Manage legacy access</td><td>beneficiary.list, beneficiary.create</td></tr>
+  <tr><td><code>/interview</code></td><td>InterviewMode</td><td>Legacy interview (pre-Halliday)</td><td>interview.saveResponse</td></tr>
+</table>
+
+<!-- ============================================================ -->
+<h2>3. End-to-End Flows</h2>
+<!-- ============================================================ -->
+
+<h3>3.1 New User Registration &rarr; First Memory</h3>
+<div class="card">
+  <div class="flow">
+    <span class="flow-step">Browser: /register</span>
+    <span class="flow-arrow">&rarr;</span>
+    <span class="flow-step">supabase.auth.signUp(email, password)</span>
+    <span class="flow-arrow">&rarr;</span>
+    <span class="flow-step">Supabase creates auth user</span>
+    <span class="flow-arrow">&rarr;</span>
+    <span class="flow-step">Session token returned</span>
+    <span class="flow-arrow">&rarr;</span>
+    <span class="flow-step">Redirect to /</span>
+  </div>
+  <div class="flow">
+    <span class="flow-step">User navigates to /reflection</span>
+    <span class="flow-arrow">&rarr;</span>
+    <span class="flow-step">tRPC call with Bearer token</span>
+    <span class="flow-arrow">&rarr;</span>
+    <span class="flow-step">createContext: supabaseAdmin.auth.getUser(token)</span>
+    <span class="flow-arrow">&rarr;</span>
+    <span class="flow-step">db.ensureUser() auto-provisions local row</span>
+    <span class="flow-arrow">&rarr;</span>
+    <span class="flow-step">ctx.user set</span>
+  </div>
+  <div class="flow">
+    <span class="flow-step">User types memory + clicks save</span>
+    <span class="flow-arrow">&rarr;</span>
+    <span class="flow-step">memory.create mutation</span>
+    <span class="flow-arrow">&rarr;</span>
+    <span class="flow-step">INSERT memory_nodes</span>
+    <span class="flow-arrow">&rarr;</span>
+    <span class="flow-step">processContent() fire-and-forget</span>
+  </div>
+  <p style="margin-top: 0.5rem; font-size: 0.85rem;"><strong>Background pipeline (3-10s):</strong> Venice LLM extracts entities &rarr; fuzzy-match/create nodes &rarr; Venice LLM proposes edges &rarr; create memory_edges &rarr; Venice Embed generates vectors &rarr; update memory_nodes.embedding</p>
+</div>
+
+<h3>3.2 Persona Chat (Graph-Aware RAG)</h3>
+<div class="card">
+  <div class="flow">
+    <span class="flow-step">User types "what did my dad teach me?"</span>
+    <span class="flow-arrow">&rarr;</span>
+    <span class="flow-step">persona.chat mutation</span>
+  </div>
+  <p style="margin: 0.5rem 0; font-size: 0.85rem;"><strong>Parallel:</strong></p>
+  <div class="flow">
+    <span class="flow-step">buildPersonaSystemPrompt()</span>
+    <span class="flow-arrow">&rarr;</span>
+    <span class="flow-step">Fetch value + reasoning nodes from DB</span>
+    <span class="flow-arrow">&rarr;</span>
+    <span class="flow-step">Build system prompt with core values + reasoning patterns</span>
+  </div>
+  <div class="flow">
+    <span class="flow-step">retrieveRelevantContext()</span>
+    <span class="flow-arrow">&rarr;</span>
+    <span class="flow-step">Venice Embed (query)</span>
+    <span class="flow-arrow">&rarr;</span>
+    <span class="flow-step">pgvector top-5</span>
+    <span class="flow-arrow">&rarr;</span>
+    <span class="flow-step">2-hop BFS on edges</span>
+    <span class="flow-arrow">&rarr;</span>
+    <span class="flow-step">Dedup + rank (sim*0.6 + edge*0.3 + recency*0.1)</span>
+    <span class="flow-arrow">&rarr;</span>
+    <span class="flow-step">Top 15 grouped by halliday_layer</span>
+  </div>
+  <div class="flow">
+    <span class="flow-step">System prompt + context + conversation history + query</span>
+    <span class="flow-arrow">&rarr;</span>
+    <span class="flow-step">Venice LLM (llama-3.3-70b)</span>
+    <span class="flow-arrow">&rarr;</span>
+    <span class="flow-step">Response + truthfulness tag + source memories</span>
+  </div>
+  <div class="flow">
+    <span class="flow-step">Background: processContent(user message)</span>
+    <span class="flow-arrow">&rarr;</span>
+    <span class="flow-step">Entity extraction from what the user said</span>
+  </div>
+</div>
+
+<h3>3.3 Halliday Interview Flow</h3>
+<div class="card">
+  <div class="flow">
+    <span class="flow-step">/halliday loads</span>
+    <span class="flow-arrow">&rarr;</span>
+    <span class="flow-step">getProgress (weighted 5-category breakdown)</span>
+    <span class="flow-arrow">&rarr;</span>
+    <span class="flow-step">getNextQuestion (adaptive: weakest category first)</span>
+  </div>
+  <div class="flow">
+    <span class="flow-step">User answers question</span>
+    <span class="flow-arrow">&rarr;</span>
+    <span class="flow-step">Option A: "Continue" &rarr; generateFollowUp (Venice LLM) &rarr; follow-up displayed</span>
+  </div>
+  <div class="flow">
+    <span class="flow-step">User submits final answer</span>
+    <span class="flow-arrow">&rarr;</span>
+    <span class="flow-step">submitResponse</span>
+    <span class="flow-arrow">&rarr;</span>
+    <span class="flow-step">Calculate specificity</span>
+    <span class="flow-arrow">&rarr;</span>
+    <span class="flow-step">INSERT halliday_responses</span>
+    <span class="flow-arrow">&rarr;</span>
+    <span class="flow-step">INSERT memories (legacy)</span>
+    <span class="flow-arrow">&rarr;</span>
+    <span class="flow-step">UPDATE halliday_progress</span>
+    <span class="flow-arrow">&rarr;</span>
+    <span class="flow-step">processContent() (background)</span>
+  </div>
+</div>
+
+<h3>3.4 Authentication Failure Flow</h3>
+<div class="card">
+  <div class="flow">
+    <span class="flow-step">Token expired / invalid</span>
+    <span class="flow-arrow">&rarr;</span>
+    <span class="flow-step">supabaseAdmin.auth.getUser() fails</span>
+    <span class="flow-arrow">&rarr;</span>
+    <span class="flow-step">ctx.user = null</span>
+    <span class="flow-arrow">&rarr;</span>
+    <span class="flow-step">protectedProcedure throws UNAUTHORIZED</span>
+  </div>
+  <div class="flow">
+    <span class="flow-step">Client receives UNAUTHORIZED</span>
+    <span class="flow-arrow">&rarr;</span>
+    <span class="flow-step">Cache observer catches it</span>
+    <span class="flow-arrow">&rarr;</span>
+    <span class="flow-step">supabase.auth.signOut()</span>
+    <span class="flow-arrow">&rarr;</span>
+    <span class="flow-step">Redirect to /login (skipped if already there)</span>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<h2>4. Gaps, Risks & Inefficiencies</h2>
+<!-- ============================================================ -->
+
+<h3>4.1 Risks <span class="severity sev-high">(will break things)</span></h3>
+
+<div class="card risk">
+  <div class="card-title">No client-side route guards</div>
+  <p>All routes (including /dashboard, /chat, /halliday) are accessible to unauthenticated users. They see broken states until tRPC calls fail with UNAUTHORIZED, then get redirected. Poor UX &mdash; shows layout with empty/errored content before bouncing to /login.</p>
+  <p><strong>Fix:</strong> Wrap protected routes in an <code>&lt;AuthGuard&gt;</code> component that checks <code>useAuth().isAuthenticated</code> before rendering.</p>
+</div>
+
+<div class="card risk">
+  <div class="card-title">system.notifyOwner will crash at runtime</div>
+  <p>The admin procedure <code>system.notifyOwner</code> imports from <code>notification.ts</code> which references <code>ENV.forgeApiUrl</code> and <code>ENV.forgeApiKey</code>. These properties don't exist in the ENV object. Any call = instant crash.</p>
+  <p><strong>Fix:</strong> Delete or disable the procedure until a replacement notification service is wired up.</p>
+</div>
+
+<div class="card risk">
+  <div class="card-title">Fire-and-forget pipeline has no error recovery</div>
+  <p><code>processContent()</code> is called without <code>await</code> and has no retry logic. If Venice is rate-limited, down, or returns malformed JSON, the pipeline silently fails. Entities don't get extracted, embeddings don't get generated, and the graph stays incomplete &mdash; with no way to detect or recover.</p>
+  <p><strong>Fix:</strong> Add a <code>pipeline_jobs</code> table with status tracking. Queue failed jobs for retry. Surface pipeline health in the dashboard.</p>
+</div>
+
+<div class="card risk">
+  <div class="card-title">No rate limiting on AI endpoints</div>
+  <p>Every <code>persona.chat</code> call triggers 1 embedding + 1 LLM call (sync) + 3 more AI calls (background). A user spamming chat burns Venice API credits with no throttle.</p>
+  <p><strong>Fix:</strong> Add per-user rate limiting (e.g., 20 chat messages/minute, 100/day).</p>
+</div>
+
+<h3>4.2 Gaps <span class="severity sev-med">(missing functionality)</span></h3>
+
+<div class="card gap">
+  <div class="card-title">No beneficiary access to persona chat</div>
+  <p>Beneficiaries can be created with access levels (full/restricted/legacy_only), but there's no route, auth flow, or tRPC procedure that lets a beneficiary log in and chat with the persona. The <code>beneficiary.getAccessibleMemories</code> query exists but reads from the legacy <code>memories</code> table, not <code>memory_nodes</code>.</p>
+</div>
+
+<div class="card gap">
+  <div class="card-title">No password reset flow</div>
+  <p>Supabase Auth supports password reset via email, but there's no "Forgot password?" link or reset page in the client.</p>
+</div>
+
+<div class="card gap">
+  <div class="card-title">No data export</div>
+  <p>Users can't export their memories, graph, or interview responses. Critical for a "Digital Mind" product &mdash; users need to own their data.</p>
+</div>
+
+<div class="card gap">
+  <div class="card-title">No voice synthesis</div>
+  <p>CLAUDE.md references ElevenLabs API for voice, but there's zero integration. The persona responds only in text.</p>
+</div>
+
+<div class="card gap">
+  <div class="card-title">No monitoring or observability</div>
+  <p>No logging service, no error tracking (Sentry etc.), no API latency monitoring. Venice API failures are console.error only.</p>
+</div>
+
+<h3>4.3 Inefficiencies <span class="severity sev-low">(slow you down)</span></h3>
+
+<div class="card inefficiency">
+  <div class="card-title">13 dead files still in codebase</div>
+  <p>Legacy Manus/Forge files that are imported nowhere and reference non-existent ENV vars:</p>
+  <ul>
+    <li><code>server/_core/dataApi.ts</code></li>
+    <li><code>server/_core/imageGeneration.ts</code></li>
+    <li><code>server/_core/map.ts</code></li>
+    <li><code>server/_core/voiceTranscription.ts</code></li>
+    <li><code>server/_core/notification.ts</code></li>
+    <li><code>server/storage.ts</code></li>
+    <li><code>server/vectorSearch.ts</code> (replaced by pgvector in db.ts)</li>
+    <li><code>client/src/components/Map.tsx</code></li>
+    <li><code>client/src/pages/ComponentShowcase.tsx</code></li>
+  </ul>
+  <p>Also 4 unused npm packages: <code>@aws-sdk/client-s3</code>, <code>@aws-sdk/s3-request-presigner</code>, <code>axios</code>, <code>jose</code>.</p>
+</div>
+
+<div class="card inefficiency">
+  <div class="card-title">Legacy tables still in schema</div>
+  <p><code>memories</code>, <code>reasoning_patterns</code>, <code>core_values</code> are superseded by <code>memory_nodes</code> but still in the schema. <code>halliday.submitResponse</code> dual-writes to both <code>memories</code> AND <code>memory_nodes</code> (via processContent). The <code>beneficiary.getAccessibleMemories</code> reads from the old <code>memories</code> table which gets fewer and fewer writes.</p>
+  <p><strong>Fix:</strong> Migrate beneficiary queries to memory_nodes. Stop dual-writing. Drop legacy tables after migration.</p>
+</div>
+
+<div class="card inefficiency">
+  <div class="card-title">searchMemoryNodesByName does in-memory filtering</div>
+  <p><code>db.searchMemoryNodesByName()</code> fetches ALL user nodes then filters with <code>.filter(n => name.includes(...))</code> in JS. Should be a SQL <code>ILIKE</code> query.</p>
+</div>
+
+<div class="card inefficiency">
+  <div class="card-title">generateEmbeddingsBatch is never called</div>
+  <p>The batch embedding function exists in <code>embeddingService.ts</code> but <code>graphPipeline.embedNodes()</code> calls <code>generateEmbedding()</code> in a serial loop. Should use batch API to reduce round-trips from N calls to 1.</p>
+</div>
+
+<div class="card inefficiency">
+  <div class="card-title">ENV object is inconsistent</div>
+  <p><code>server/_core/env.ts</code> defines an ENV object, but <code>DATABASE_URL</code> is read directly from <code>process.env</code> in <code>db.ts</code>, and <code>VITE_SUPABASE_*</code> vars are read directly in <code>supabase.ts</code>. Three different patterns for env access.</p>
+</div>
+
+<!-- ============================================================ -->
+<h2>5. Environment Variables (Complete)</h2>
+<!-- ============================================================ -->
+
+<table>
+  <tr><th>Variable</th><th>Required</th><th>Where Used</th><th>Notes</th></tr>
+  <tr><td><code>DATABASE_URL</code></td><td><span class="tag tag-red">required</span></td><td>server/db.ts</td><td>PostgreSQL pooler connection string</td></tr>
+  <tr><td><code>VENICE_API_KEY</code></td><td><span class="tag tag-red">required</span></td><td>server/_core/llm.ts, server/embeddingService.ts</td><td>Venice AI inference key</td></tr>
+  <tr><td><code>VITE_SUPABASE_URL</code></td><td><span class="tag tag-red">required</span></td><td>Client + server supabase.ts</td><td>Must be set at build time (Vite inlines it)</td></tr>
+  <tr><td><code>VITE_SUPABASE_ANON_KEY</code></td><td><span class="tag tag-red">required</span></td><td>Client + server supabase.ts</td><td>Must be set at build time (Vite inlines it)</td></tr>
+  <tr><td><code>PORT</code></td><td><span class="tag tag-dim">optional</span></td><td>server/_core/index.ts</td><td>Defaults to 3000</td></tr>
+  <tr><td><code>NODE_ENV</code></td><td><span class="tag tag-dim">optional</span></td><td>Multiple</td><td>Controls dev vs prod mode</td></tr>
+  <tr><td><code>OWNER_OPEN_ID</code></td><td><span class="tag tag-dim">optional</span></td><td>server/_core/env.ts</td><td>Auto-assigns admin role to this Supabase UUID</td></tr>
+</table>
+
+<!-- ============================================================ -->
+<h2>6. Build & Deploy</h2>
+<!-- ============================================================ -->
+
+<div class="grid-2">
+  <div class="card">
+    <div class="card-title">Development</div>
+    <p><code>pnpm dev</code></p>
+    <p>Single process: tsx runs server/_core/index.ts with Vite middleware. Hot reload on both client and server. Port 3000.</p>
+  </div>
+  <div class="card">
+    <div class="card-title">Production Build</div>
+    <p><code>pnpm build</code></p>
+    <p>1. <code>vite build</code> &rarr; <code>dist/public/</code> (client assets)<br>
+    2. <code>esbuild server/_core/index.ts</code> &rarr; <code>dist/index.js</code> (server bundle, ESM, external deps)</p>
+  </div>
+  <div class="card">
+    <div class="card-title">Production Start</div>
+    <p><code>pnpm start</code></p>
+    <p><code>NODE_ENV=production node dist/index.js</code><br>
+    Express serves <code>dist/public/</code> as static files with SPA fallback.</p>
+  </div>
+  <div class="card">
+    <div class="card-title">Railway Deployment</div>
+    <p>Nixpacks auto-detects Node.js + pnpm from package.json. Runs build &rarr; start automatically. Set all 4 required env vars in Railway dashboard.</p>
+  </div>
+</div>
+
+<hr style="border-color: var(--border); margin: 3rem 0 1rem;">
+<p style="text-align: center; color: var(--dim); font-size: 0.8rem;">Ether System Map &mdash; generated 2026-04-14 &mdash; single source of truth</p>
+
+</body>
+</html>

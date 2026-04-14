@@ -1,0 +1,116 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <defs>
+    <radialGradient id="bg-glow-center" cx="50%" cy="40%" r="50%">
+      <stop offset="0%" stop-color="#0c1424"/>
+      <stop offset="100%" stop-color="#080b14"/>
+    </radialGradient>
+    <radialGradient id="glow-lg" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#60a5fa"/>
+      <stop offset="100%" stop-color="#3b82f6"/>
+    </radialGradient>
+    <radialGradient id="glow-sm" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#93c5fd"/>
+      <stop offset="80%" stop-color="#3b82f6"/>
+    </radialGradient>
+    <filter id="bloom">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="5"/>
+    </filter>
+    <filter id="bg-bloom-lg">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="50"/>
+    </filter>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Sora:wght@400;600&amp;family=Source+Serif+4:wght@400&amp;display=swap');
+    </style>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1200" height="630" fill="#080b14"/>
+  <rect width="1200" height="630" fill="url(#bg-glow-center)"/>
+
+  <!-- Background dot grid -->
+  <g opacity="0.035" fill="#3b82f6">
+    <circle cx="80" cy="60" r="1.2"/><circle cx="180" cy="60" r="1"/><circle cx="280" cy="60" r="1.2"/>
+    <circle cx="380" cy="60" r="1"/><circle cx="480" cy="60" r="1.2"/><circle cx="580" cy="60" r="1"/>
+    <circle cx="680" cy="60" r="1.2"/><circle cx="780" cy="60" r="1"/><circle cx="880" cy="60" r="1.2"/>
+    <circle cx="980" cy="60" r="1"/><circle cx="1080" cy="60" r="1.2"/>
+    <circle cx="130" cy="140" r="1"/><circle cx="230" cy="140" r="1.2"/><circle cx="330" cy="140" r="1"/>
+    <circle cx="430" cy="140" r="1.2"/><circle cx="530" cy="140" r="1"/><circle cx="630" cy="140" r="1.2"/>
+    <circle cx="730" cy="140" r="1"/><circle cx="830" cy="140" r="1.2"/><circle cx="930" cy="140" r="1"/>
+    <circle cx="1030" cy="140" r="1.2"/>
+    <circle cx="80" cy="490" r="1.2"/><circle cx="180" cy="490" r="1"/><circle cx="280" cy="490" r="1.2"/>
+    <circle cx="380" cy="490" r="1"/><circle cx="480" cy="490" r="1.2"/><circle cx="580" cy="490" r="1"/>
+    <circle cx="680" cy="490" r="1.2"/><circle cx="780" cy="490" r="1"/><circle cx="880" cy="490" r="1.2"/>
+    <circle cx="980" cy="490" r="1"/><circle cx="1080" cy="490" r="1.2"/>
+    <circle cx="130" cy="570" r="1"/><circle cx="230" cy="570" r="1.2"/><circle cx="330" cy="570" r="1"/>
+    <circle cx="430" cy="570" r="1.2"/><circle cx="530" cy="570" r="1"/><circle cx="630" cy="570" r="1.2"/>
+    <circle cx="730" cy="570" r="1"/><circle cx="830" cy="570" r="1.2"/><circle cx="930" cy="570" r="1"/>
+    <circle cx="1030" cy="570" r="1.2"/>
+  </g>
+
+  <!-- Background lines -->
+  <g stroke="#3b82f6" opacity="0.025" stroke-width="0.5">
+    <line x1="80" y1="60" x2="230" y2="140"/>
+    <line x1="480" y1="60" x2="530" y2="140"/>
+    <line x1="880" y1="490" x2="1030" y2="570"/>
+    <line x1="280" y1="490" x2="330" y2="570"/>
+  </g>
+
+  <!-- Ambient glow -->
+  <circle cx="600" cy="260" r="200" fill="#3b82f6" opacity="0.04" filter="url(#bg-bloom-lg)"/>
+
+  <!-- Logo mark (centered above text) -->
+  <g transform="translate(510, 130) scale(1.8)">
+    <g filter="url(#bloom)" opacity="0.3">
+      <circle cx="50" cy="14" r="7" fill="#3b82f6"/>
+      <circle cx="84" cy="38" r="4.5" fill="#3b82f6"/>
+      <circle cx="18" cy="36" r="5.5" fill="#3b82f6"/>
+      <circle cx="68" cy="72" r="5" fill="#3b82f6"/>
+      <circle cx="32" cy="74" r="4.5" fill="#3b82f6"/>
+    </g>
+    <g stroke="#3b82f6" fill="none" stroke-linecap="round">
+      <line x1="50" y1="14" x2="84" y2="38" stroke-width="1.4" opacity="0.5"/>
+      <line x1="50" y1="14" x2="18" y2="36" stroke-width="1.4" opacity="0.52"/>
+      <line x1="84" y1="38" x2="68" y2="72" stroke-width="1.2" opacity="0.42"/>
+      <line x1="18" y1="36" x2="32" y2="74" stroke-width="1.2" opacity="0.44"/>
+      <line x1="68" y1="72" x2="32" y2="74" stroke-width="1.2" opacity="0.38"/>
+      <line x1="50" y1="14" x2="50" y2="46" stroke-width="1" opacity="0.32"/>
+      <line x1="50" y1="46" x2="68" y2="72" stroke-width="0.8" opacity="0.22"/>
+      <line x1="50" y1="46" x2="32" y2="74" stroke-width="0.8" opacity="0.22"/>
+      <line x1="50" y1="14" x2="68" y2="72" stroke-width="0.6" opacity="0.14"/>
+      <line x1="84" y1="38" x2="32" y2="74" stroke-width="0.6" opacity="0.11"/>
+      <line x1="18" y1="36" x2="68" y2="72" stroke-width="0.6" opacity="0.12"/>
+    </g>
+    <circle cx="50" cy="14" r="7" fill="url(#glow-lg)"/>
+    <circle cx="84" cy="38" r="4.5" fill="url(#glow-lg)"/>
+    <circle cx="18" cy="36" r="5.5" fill="url(#glow-lg)"/>
+    <circle cx="68" cy="72" r="5" fill="url(#glow-lg)"/>
+    <circle cx="32" cy="74" r="4.5" fill="url(#glow-lg)"/>
+    <circle cx="50" cy="46" r="3" fill="url(#glow-sm)" opacity="0.65"/>
+  </g>
+
+  <!-- Wordmark -->
+  <text
+    x="600"
+    y="410"
+    text-anchor="middle"
+    font-family="'Sora', 'Inter', -apple-system, sans-serif"
+    font-weight="600"
+    font-size="64"
+    fill="#ffffff"
+    letter-spacing="0.04em"
+  >Ether</text>
+
+  <!-- Tagline -->
+  <text
+    x="600"
+    y="460"
+    text-anchor="middle"
+    font-family="'Source Serif 4', 'Source Serif Pro', Georgia, serif"
+    font-weight="400"
+    font-size="22"
+    fill="#94a3b8"
+  >Your Mind Is The Most Valuable Thing You'll Ever Build</text>
+
+  <!-- Bottom accent -->
+  <line x1="560" y1="490" x2="640" y2="490" stroke="#3b82f6" stroke-width="2" opacity="0.35" stroke-linecap="round"/>
+</svg>

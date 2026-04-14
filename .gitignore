@@ -12,3 +12,7 @@ dist/
 .env
 .env.local
 .env.*.local
+
+# x-agent
+x-agent/.post-history.json
+x-agent/.env

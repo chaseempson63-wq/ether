@@ -1,0 +1,12 @@
+{
+  "name": "x-agent",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "draft": "node src/draft.js",
+    "thought": "node src/draft.js 1"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.7"
+  }
+}

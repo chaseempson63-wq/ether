@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Ether Brand Kit — PNG Export</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600&family=Source+Serif+4:wght@400&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #0a0a0a;
+    color: #e2e8f0;
+    font-family: 'Sora', system-ui, sans-serif;
+    padding: 40px;
+  }
+  h1 { font-size: 28px; margin-bottom: 8px; font-weight: 600; }
+  .subtitle { color: #64748b; margin-bottom: 48px; font-size: 14px; }
+  .asset {
+    margin-bottom: 64px;
+    border: 1px solid #1e293b;
+    border-radius: 12px;
+    padding: 32px;
+    background: #0f172a;
+  }
+  .asset h2 {
+    font-size: 18px;
+    font-weight: 600;
+    margin-bottom: 4px;
+  }
+  .asset .dims {
+    color: #64748b;
+    font-size: 13px;
+    margin-bottom: 20px;
+  }
+  .asset canvas {
+    display: block;
+    border: 1px solid #1e293b;
+    border-radius: 8px;
+    margin-bottom: 16px;
+  }
+  .preview-wrap {
+    overflow-x: auto;
+    margin-bottom: 16px;
+  }
+  button {
+    background: #3b82f6;
+    color: white;
+    border: none;
+    padding: 10px 24px;
+    border-radius: 8px;
+    font-family: 'Sora', sans-serif;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  button:hover { background: #2563eb; }
+  .btn-row { display: flex; gap: 12px; }
+</style>
+</head>
+<body>
+
+<h1>Ether Brand Kit</h1>
+<p class="subtitle">Click "Download PNG" to save each asset. All fonts are loaded from Google Fonts.</p>
+
+<div class="asset" id="asset-avatar">
+  <h2>Twitter / X Profile Picture</h2>
+  <p class="dims">400 &times; 400 px</p>
+  <div class="preview-wrap"><canvas id="c-avatar" width="400" height="400"></canvas></div>
+  <button onclick="download('c-avatar', 'ether-avatar-400x400.png')">Download PNG</button>
+</div>
+
+<div class="asset" id="asset-header">
+  <h2>Twitter / X Header</h2>
+  <p class="dims">1500 &times; 500 px</p>
+  <div class="preview-wrap"><canvas id="c-header" width="1500" height="500"></canvas></div>
+  <button onclick="download('c-header', 'ether-twitter-header-1500x500.png')">Download PNG</button>
+</div>
+
+<div class="asset" id="asset-og">
+  <h2>Open Graph Image</h2>
+  <p class="dims">1200 &times; 630 px</p>
+  <div class="preview-wrap"><canvas id="c-og" width="1200" height="630"></canvas></div>
+  <button onclick="download('c-og', 'ether-og-1200x630.png')">Download PNG</button>
+</div>
+
+<div class="asset" id="asset-mark">
+  <h2>Logo Mark (on dark)</h2>
+  <p class="dims">512 &times; 512 px</p>
+  <div class="preview-wrap"><canvas id="c-mark" width="512" height="512"></canvas></div>
+  <button onclick="download('c-mark', 'ether-logo-mark-512x512.png')">Download PNG</button>
+</div>
+
+<div class="asset" id="asset-wordmark">
+  <h2>Wordmark (on dark)</h2>
+  <p class="dims">800 &times; 200 px</p>
+  <div class="preview-wrap"><canvas id="c-wordmark" width="800" height="200"></canvas></div>
+  <button onclick="download('c-wordmark', 'ether-wordmark-800x200.png')">Download PNG</button>
+</div>
+
+<script>
+// ─── Brand constants ───
+const BG = '#080b14';
+const BLUE = '#3b82f6';
+const BLUE_LIGHT = '#60a5fa';
+const BLUE_LIGHTER = '#93c5fd';
+const TEXT_WHITE = '#ffffff';
+const TEXT_MUTED = '#94a3b8';
+
+// ─── Logo mark drawing function ───
+function drawMark(ctx, cx, cy, scale) {
+  const nodes = [
+    { x: 50, y: 14, r: 7, primary: true },
+    { x: 84, y: 38, r: 4.5, primary: true },
+    { x: 18, y: 36, r: 5.5, primary: true },
+    { x: 68, y: 72, r: 5, primary: true },
+    { x: 32, y: 74, r: 4.5, primary: true },
+    { x: 50, y: 46, r: 3, primary: false },
+  ];
+
+  const edges = [
+    { from: 0, to: 1, w: 1.4, a: 0.5 },
+    { from: 0, to: 2, w: 1.4, a: 0.52 },
+    { from: 1, to: 3, w: 1.2, a: 0.42 },
+    { from: 2, to: 4, w: 1.2, a: 0.44 },
+    { from: 3, to: 4, w: 1.2, a: 0.38 },
+    { from: 0, to: 5, w: 1.0, a: 0.32 },
+    { from: 5, to: 3, w: 0.8, a: 0.22 },
+    { from: 5, to: 4, w: 0.8, a: 0.22 },
+    { from: 0, to: 3, w: 0.6, a: 0.14 },
+    { from: 1, to: 4, w: 0.6, a: 0.11 },
+    { from: 2, to: 3, w: 0.6, a: 0.12 },
+  ];
+
+  const tx = (n) => cx + (n.x - 50) * scale;
+  const ty = (n) => cy + (n.y - 43) * scale;
+
+  // Bloom layer
+  ctx.save();
+  ctx.filter = `blur(${3.5 * scale}px)`;
+  ctx.globalAlpha = 0.35;
+  for (const n of nodes) {
+    if (!n.primary) continue;
+    ctx.beginPath();
+    ctx.arc(tx(n), ty(n), n.r * scale, 0, Math.PI * 2);
+    ctx.fillStyle = BLUE;
+    ctx.fill();
+  }
+  ctx.restore();
+
+  // Edges
+  for (const e of edges) {
+    const a = nodes[e.from], b = nodes[e.to];
+    ctx.beginPath();
+    ctx.moveTo(tx(a), ty(a));
+    ctx.lineTo(tx(b), ty(b));
+    ctx.strokeStyle = BLUE;
+    ctx.lineWidth = e.w * scale;
+    ctx.globalAlpha = e.a;
+    ctx.lineCap = 'round';
+    ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+
+  // Nodes
+  for (const n of nodes) {
+    const grad = ctx.createRadialGradient(tx(n), ty(n), 0, tx(n), ty(n), n.r * scale);
+    grad.addColorStop(0, n.primary ? BLUE_LIGHT : BLUE_LIGHTER);
+    grad.addColorStop(1, BLUE);
+
+    ctx.globalAlpha = n.primary ? 1 : 0.65;
+    ctx.beginPath();
+    ctx.arc(tx(n), ty(n), n.r * scale, 0, Math.PI * 2);
+    ctx.fillStyle = grad;
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+}
+
+// ─── Background dot grid ───
+function drawDotGrid(ctx, w, h, spacing, radius, opacity) {
+  ctx.globalAlpha = opacity;
+  ctx.fillStyle = BLUE;
+  for (let x = spacing; x < w; x += spacing) {
+    for (let y = spacing; y < h; y += spacing) {
+      const r = (Math.sin(x * 0.01 + y * 0.02) > 0) ? radius : radius * 0.7;
+      ctx.beginPath();
+      ctx.arc(x, y, r, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+  ctx.globalAlpha = 1;
+}
+
+// Wait for fonts to load
+document.fonts.ready.then(() => {
+
+  // ─── Avatar (400x400) ───
+  {
+    const c = document.getElementById('c-avatar');
+    const ctx = c.getContext('2d');
+    // BG
+    ctx.fillStyle = BG;
+    ctx.fillRect(0, 0, 400, 400);
+    // Subtle bg glow
+    const bgGlow = ctx.createRadialGradient(200, 185, 0, 200, 185, 180);
+    bgGlow.addColorStop(0, 'rgba(59,130,246,0.06)');
+    bgGlow.addColorStop(1, 'rgba(59,130,246,0)');
+    ctx.fillStyle = bgGlow;
+    ctx.fillRect(0, 0, 400, 400);
+    // Mark
+    drawMark(ctx, 200, 192, 2.8);
+  }
+
+  // ─── Header (1500x500) ───
+  {
+    const c = document.getElementById('c-header');
+    const ctx = c.getContext('2d');
+    // BG
+    ctx.fillStyle = BG;
+    ctx.fillRect(0, 0, 1500, 500);
+    const bgGlow = ctx.createRadialGradient(480, 250, 0, 480, 250, 350);
+    bgGlow.addColorStop(0, 'rgba(12,20,36,1)');
+    bgGlow.addColorStop(1, 'rgba(8,11,20,1)');
+    ctx.fillStyle = bgGlow;
+    ctx.fillRect(0, 0, 1500, 500);
+    // Dot grid
+    drawDotGrid(ctx, 1500, 500, 100, 1.3, 0.04);
+    // Ambient glow
+    const amb = ctx.createRadialGradient(480, 250, 0, 480, 250, 200);
+    amb.addColorStop(0, 'rgba(59,130,246,0.05)');
+    amb.addColorStop(1, 'rgba(59,130,246,0)');
+    ctx.fillStyle = amb;
+    ctx.fillRect(0, 0, 1500, 500);
+    // Mark
+    drawMark(ctx, 440, 248, 2.6);
+    // Wordmark
+    ctx.font = '600 72px Sora, Inter, sans-serif';
+    ctx.fillStyle = TEXT_WHITE;
+    ctx.letterSpacing = '2px';
+    ctx.fillText('Ether', 600, 232);
+    // Tagline
+    ctx.font = '400 24px "Source Serif 4", Georgia, serif';
+    ctx.fillStyle = TEXT_MUTED;
+    ctx.fillText('Your Digital Mind. Living Forever.', 604, 290);
+    // Accent line
+    ctx.beginPath();
+    ctx.moveTo(604, 310);
+    ctx.lineTo(700, 310);
+    ctx.strokeStyle = BLUE;
+    ctx.lineWidth = 2;
+    ctx.globalAlpha = 0.4;
+    ctx.lineCap = 'round';
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+  }
+
+  // ─── OG Image (1200x630) ───
+  {
+    const c = document.getElementById('c-og');
+    const ctx = c.getContext('2d');
+    // BG
+    ctx.fillStyle = BG;
+    ctx.fillRect(0, 0, 1200, 630);
+    const bgGlow = ctx.createRadialGradient(600, 280, 0, 600, 280, 350);
+    bgGlow.addColorStop(0, 'rgba(12,20,36,1)');
+    bgGlow.addColorStop(1, 'rgba(8,11,20,1)');
+    ctx.fillStyle = bgGlow;
+    ctx.fillRect(0, 0, 1200, 630);
+    // Dot grid
+    drawDotGrid(ctx, 1200, 630, 100, 1.2, 0.035);
+    // Ambient glow
+    const amb = ctx.createRadialGradient(600, 260, 0, 600, 260, 200);
+    amb.addColorStop(0, 'rgba(59,130,246,0.05)');
+    amb.addColorStop(1, 'rgba(59,130,246,0)');
+    ctx.fillStyle = amb;
+    ctx.fillRect(0, 0, 1200, 630);
+    // Mark
+    drawMark(ctx, 600, 230, 1.8);
+    // Wordmark
+    ctx.font = '600 64px Sora, Inter, sans-serif';
+    ctx.fillStyle = TEXT_WHITE;
+    ctx.textAlign = 'center';
+    ctx.fillText('Ether', 600, 410);
+    // Tagline
+    ctx.font = '400 22px "Source Serif 4", Georgia, serif';
+    ctx.fillStyle = TEXT_MUTED;
+    ctx.fillText("Your Mind Is The Most Valuable Thing You'll Ever Build", 600, 458);
+    // Accent line
+    ctx.beginPath();
+    ctx.moveTo(560, 485);
+    ctx.lineTo(640, 485);
+    ctx.strokeStyle = BLUE;
+    ctx.lineWidth = 2;
+    ctx.globalAlpha = 0.35;
+    ctx.lineCap = 'round';
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+    ctx.textAlign = 'start';
+  }
+
+  // ─── Logo mark standalone (512x512) ───
+  {
+    const c = document.getElementById('c-mark');
+    const ctx = c.getContext('2d');
+    ctx.fillStyle = BG;
+    ctx.fillRect(0, 0, 512, 512);
+    const bgGlow = ctx.createRadialGradient(256, 240, 0, 256, 240, 200);
+    bgGlow.addColorStop(0, 'rgba(59,130,246,0.05)');
+    bgGlow.addColorStop(1, 'rgba(59,130,246,0)');
+    ctx.fillStyle = bgGlow;
+    ctx.fillRect(0, 0, 512, 512);
+    drawMark(ctx, 256, 248, 3.5);
+  }
+
+  // ─── Wordmark (800x200) ───
+  {
+    const c = document.getElementById('c-wordmark');
+    const ctx = c.getContext('2d');
+    ctx.fillStyle = BG;
+    ctx.fillRect(0, 0, 800, 200);
+    // Draw mark small
+    drawMark(ctx, 110, 100, 1.2);
+    // Wordmark
+    ctx.font = '600 64px Sora, Inter, sans-serif';
+    ctx.fillStyle = TEXT_WHITE;
+    ctx.fillText('Ether', 185, 118);
+  }
+
+});
+
+function download(canvasId, filename) {
+  const c = document.getElementById(canvasId);
+  const a = document.createElement('a');
+  a.href = c.toDataURL('image/png');
+  a.download = filename;
+  a.click();
+}
+</script>
+</body>
+</html>

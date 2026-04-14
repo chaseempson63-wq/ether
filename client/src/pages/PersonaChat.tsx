@@ -3,13 +3,7 @@ import { trpc } from "@/lib/trpc";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -49,10 +43,6 @@ interface Message {
   confidence?: number;
   createdAt?: Date;
 }
-
-const isRichSourceMemories = (
-  s: SourceMemoriesField
-): s is SourceMemory[] => Array.isArray(s) && s.length > 0 && typeof s[0] === "object";
 
 export default function PersonaChat() {
   const [, setLocation] = useLocation();
@@ -537,74 +527,12 @@ function MessageBubble({ message }: { message: Message }) {
       >
         <Streamdown>{message.content}</Streamdown>
 
-        {!isUser && message.truthfulnessTag && (
-          <div className="mt-3 pt-3 border-t border-slate-700">
-            <TruthfulnessBadge
-              tag={message.truthfulnessTag}
-              confidence={message.confidence}
-            />
-          </div>
+        {!isUser && message.sourceMemories && Array.isArray(message.sourceMemories) && message.sourceMemories.length > 0 && (
+          <p className="mt-2 text-xs text-slate-500">
+            Based on {message.sourceMemories.length} {message.sourceMemories.length === 1 ? "memory" : "memories"}
+          </p>
         )}
-
-        {!isUser &&
-          message.sourceMemories &&
-          (Array.isArray(message.sourceMemories)
-            ? message.sourceMemories.length
-            : 0) > 0 && (
-            <SourceCitations sources={message.sourceMemories} />
-          )}
       </div>
-    </div>
-  );
-}
-
-function TruthfulnessBadge({ tag, confidence }: { tag: string; confidence?: number }) {
-  const className =
-    tag === "Known Memory"
-      ? "bg-green-900/40 text-green-300 border border-green-800"
-      : tag === "Likely Inference"
-      ? "bg-amber-900/40 text-amber-300 border border-amber-800"
-      : tag === "Speculation"
-      ? "bg-red-900/40 text-red-300 border border-red-800"
-      : "bg-slate-700 text-slate-300 border border-slate-600";
-  return (
-    <Badge className={className}>
-      {tag}
-      {confidence !== undefined && ` (${Math.round(confidence * 100)}%)`}
-    </Badge>
-  );
-}
-
-function SourceCitations({ sources }: { sources: SourceMemoriesField }) {
-  if (!sources || sources.length === 0) return null;
-
-  if (!isRichSourceMemories(sources)) {
-    return (
-      <div className="mt-2 text-xs text-slate-400">
-        Cited {sources.length} {sources.length === 1 ? "memory" : "memories"}
-      </div>
-    );
-  }
-
-  return (
-    <div className="mt-2 flex flex-wrap gap-1.5">
-      <span className="text-xs text-slate-500 mr-1 self-center">Sources:</span>
-      {sources.map((src, idx) => (
-        <Popover key={`${src.id}-${idx}`}>
-          <PopoverTrigger asChild>
-            <Badge
-              variant="outline"
-              className="cursor-pointer border-slate-600 text-slate-300 hover:bg-slate-700 hover:text-white text-xs"
-            >
-              {src.title || `Memory ${src.id}`}
-            </Badge>
-          </PopoverTrigger>
-          <PopoverContent className="bg-slate-900 border-slate-700 text-slate-200 max-w-sm">
-            <div className="text-xs text-slate-500 mb-1">Cited memory</div>
-            <div className="text-sm whitespace-pre-wrap">{src.content}</div>
-          </PopoverContent>
-        </Popover>
-      ))}
     </div>
   );
 }

@@ -1,7 +1,7 @@
 import { eq, desc, and, inArray, or, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
-import { InsertUser, InsertMemoryNode, users, memories, reasoningPatterns, coreValues, beneficiaries, profiles, memoryNodes, memoryEdges } from "../drizzle/schema";
+import { InsertUser, InsertMemoryNode, users, beneficiaries, profiles, memoryNodes, memoryEdges } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
 let _db: ReturnType<typeof drizzle> | null = null;
@@ -98,89 +98,6 @@ export async function getUserById(id: number) {
 
   const result = await db.select().from(users).where(eq(users.id, id)).limit(1);
   return result.length > 0 ? result[0] : undefined;
-}
-
-// Ether-specific database helpers
-
-export async function createMemory(userId: number, data: {
-  content: string;
-  sourceType: 'journal' | 'voice_memo' | 'passive_import' | 'interview';
-  occurredAt?: Date;
-  tags?: string[];
-  embedding?: number[];
-}) {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
-
-  const result = await db.insert(memories).values({
-    userId,
-    content: data.content,
-    sourceType: data.sourceType,
-    occurredAt: data.occurredAt,
-    tags: data.tags ?? null,
-    embedding: data.embedding ?? null,
-  });
-
-  return result;
-}
-
-export async function getMemoriesByUserId(userId: number, limit = 50) {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
-
-  return db.select().from(memories).where(eq(memories.userId, userId)).orderBy(desc(memories.createdAt)).limit(limit);
-}
-
-export async function createReasoningPattern(userId: number, data: {
-  decision: string;
-  logicWhy: string;
-  outcome?: string;
-  tags?: string[];
-  embedding?: number[];
-}) {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
-
-  return db.insert(reasoningPatterns).values({
-    userId,
-    decision: data.decision,
-    logicWhy: data.logicWhy,
-    outcome: data.outcome,
-    tags: data.tags ?? null,
-    embedding: data.embedding ?? null,
-  });
-}
-
-export async function getReasoningPatternsByUserId(userId: number, limit = 50) {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
-
-  return db.select().from(reasoningPatterns).where(eq(reasoningPatterns.userId, userId)).orderBy(desc(reasoningPatterns.createdAt)).limit(limit);
-}
-
-export async function createCoreValue(userId: number, data: {
-  valueStatement: string;
-  beliefContext?: string;
-  priority?: number;
-  embedding?: number[];
-}) {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
-
-  return db.insert(coreValues).values({
-    userId,
-    valueStatement: data.valueStatement,
-    beliefContext: data.beliefContext,
-    priority: data.priority || 1,
-    embedding: data.embedding ?? null,
-  });
-}
-
-export async function getCoreValuesByUserId(userId: number) {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
-
-  return db.select().from(coreValues).where(eq(coreValues.userId, userId)).orderBy(coreValues.priority);
 }
 
 export async function createBeneficiary(userId: number, data: {

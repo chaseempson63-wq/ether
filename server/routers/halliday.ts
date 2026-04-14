@@ -1,8 +1,8 @@
 import { z } from "zod";
 import { protectedProcedure, router } from "../_core/trpc";
-import { getDb } from "../db";
+import { getDb, createMemoryNode } from "../db";
 import { processContent } from "../graphPipeline";
-import { hallidayQuestions, hallidayResponses, hallidayProgress, memories } from "../../drizzle/schema";
+import { hallidayQuestions, hallidayResponses, hallidayProgress } from "../../drizzle/schema";
 import { eq, and, desc, inArray, avg } from "drizzle-orm";
 import { invokeLLM } from "../_core/llm";
 
@@ -220,7 +220,7 @@ export const hallidayRouter = router({
         accuracy: specificity,
       });
 
-      // Auto-capture: persist Halliday response into the memories table
+      // Auto-capture: persist Halliday response into memory_nodes
       // so it is available to the RAG Persona Engine
       const question = await db
         .select()
@@ -231,12 +231,23 @@ export const hallidayRouter = router({
       if (question.length > 0) {
         const q = question[0];
         const memoryContent = `[Halliday Interview — ${q.category.replace(/_/g, " ")}] ${q.text}\n\nAnswer: ${input.response}`;
-        await db.insert(memories).values({
-          userId: ctx.user.id,
+
+        // Map halliday category to halliday_layer
+        const layerMap: Record<string, "voice_and_language" | "memory_and_life_events" | "reasoning_and_decisions" | "values_and_beliefs" | "emotional_patterns"> = {
+          voice_language: "voice_and_language",
+          memory_life_events: "memory_and_life_events",
+          reasoning_decisions: "reasoning_and_decisions",
+          values_beliefs: "values_and_beliefs",
+          emotional_patterns: "emotional_patterns",
+        };
+
+        await createMemoryNode(ctx.user.id, {
+          nodeType: "memory",
+          hallidayLayer: layerMap[q.category] ?? "memory_and_life_events",
           content: memoryContent,
-          sourceType: "interview",
-          tags: JSON.stringify(["halliday", q.category, q.section]),
-          occurredAt: new Date(),
+          sourceType: "halliday",
+          confidence: 1.0,
+          metadata: { tags: ["halliday", q.category, q.section], questionId: q.questionId },
         });
       }
 

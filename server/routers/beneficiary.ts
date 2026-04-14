@@ -1,7 +1,7 @@
 import { protectedProcedure, router } from "../_core/trpc";
 import { z } from "zod";
 import { getDb } from "../db";
-import { beneficiaries, memories, reasoningPatterns, coreValues } from "../../drizzle/schema";
+import { beneficiaries } from "../../drizzle/schema";
 import { eq, and } from "drizzle-orm";
 import {
   canAccessMemory,

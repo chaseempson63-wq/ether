@@ -15,6 +15,7 @@ import BeneficiaryManagement from "./pages/BeneficiaryManagement";
 import QuickMemory from "./pages/QuickMemory";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
+import Onboarding from "./pages/Onboarding";
 
 /** Wrap a component so it requires authentication */
 function Protected({ children }: { children: React.ReactNode }) {
@@ -30,6 +31,7 @@ function Router() {
       <Route path="/register" component={Register} />
 
       {/* Protected routes */}
+      <Route path="/onboarding">{() => <Protected><Onboarding /></Protected>}</Route>
       <Route path="/halliday">{() => <Protected><HallidayInterview /></Protected>}</Route>
       <Route path="/quick">{() => <Protected><QuickMemory /></Protected>}</Route>
       <Route path="/dashboard">{() => <Protected><Dashboard /></Protected>}</Route>

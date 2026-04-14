@@ -145,6 +145,29 @@ export async function getOrCreateProfile(userId: number, data?: { bio?: string; 
   return created[0];
 }
 
+export async function updateProfile(
+  userId: number,
+  data: {
+    bio?: string;
+    headline?: string;
+    onboardingComplete?: boolean;
+    voiceStyle?: string;
+  }
+) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  const set: Record<string, unknown> = {};
+  if (data.bio !== undefined) set.bio = data.bio;
+  if (data.headline !== undefined) set.headline = data.headline;
+  if (data.onboardingComplete !== undefined) set.onboardingComplete = data.onboardingComplete;
+  if (data.voiceStyle !== undefined) set.voiceStyle = data.voiceStyle;
+
+  if (Object.keys(set).length === 0) return;
+
+  await db.update(profiles).set(set).where(eq(profiles.userId, userId));
+}
+
 // Auth helpers
 
 export async function getUserByEmail(email: string) {

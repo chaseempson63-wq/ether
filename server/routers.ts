@@ -6,7 +6,7 @@ import { conversationRouter } from "./routers/conversations";
 import { beneficiaryRouter } from "./routers/beneficiary";
 import { publicProcedure, protectedProcedure, router } from "./_core/trpc";
 import { z } from "zod";
-import { getOrCreateProfile, createMemoryNode, getMemoryNodesByUserId, createMemoryEdge, getMemoryEdgesByUserId } from "./db";
+import { getOrCreateProfile, updateProfile, createMemoryNode, getMemoryNodesByUserId, createMemoryEdge, getMemoryEdgesByUserId } from "./db";
 import { personaRouter } from "./routers/persona";
 import { interviewRouter } from "./routers/interview";
 import { processContent } from "./graphPipeline";
@@ -285,6 +285,67 @@ export const appRouter = router({
       .mutation(async ({ ctx, input }) => {
         return getOrCreateProfile(ctx.user.id, input);
       }),
+  }),
+
+  onboarding: router({
+    status: protectedProcedure.query(async ({ ctx }) => {
+      const profile = await getOrCreateProfile(ctx.user.id);
+      return { onboardingComplete: profile.onboardingComplete };
+    }),
+
+    submitStep: protectedProcedure
+      .input(z.object({
+        step: z.number().min(1).max(7),
+        answer: z.string().min(1),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        // Map steps to node types and halliday layers
+        const stepConfig: Record<number, {
+          nodeType: 'memory' | 'person' | 'place' | 'value' | 'belief' | 'concept';
+          hallidayLayer: 'voice_and_language' | 'memory_and_life_events' | 'reasoning_and_decisions' | 'values_and_beliefs' | 'emotional_patterns';
+          label: string;
+        }> = {
+          1: { nodeType: 'concept', hallidayLayer: 'voice_and_language', label: 'name' },
+          2: { nodeType: 'place', hallidayLayer: 'memory_and_life_events', label: 'home' },
+          3: { nodeType: 'concept', hallidayLayer: 'reasoning_and_decisions', label: 'occupation' },
+          4: { nodeType: 'person', hallidayLayer: 'memory_and_life_events', label: 'important_people' },
+          5: { nodeType: 'belief', hallidayLayer: 'values_and_beliefs', label: 'core_belief' },
+          6: { nodeType: 'memory', hallidayLayer: 'emotional_patterns', label: 'secret_memory' },
+          7: { nodeType: 'concept', hallidayLayer: 'voice_and_language', label: 'voice_style' },
+        };
+
+        const config = stepConfig[input.step];
+
+        // Step 1 (name): also update user's name on profile headline
+        if (input.step === 1) {
+          await updateProfile(ctx.user.id, { headline: `${input.answer}'s Digital Mind` });
+        }
+
+        // Step 7 (voice style): save to profile
+        if (input.step === 7) {
+          await updateProfile(ctx.user.id, { voiceStyle: input.answer });
+        }
+
+        // Create a memory node for every step
+        const node = await createMemoryNode(ctx.user.id, {
+          nodeType: config.nodeType,
+          hallidayLayer: config.hallidayLayer,
+          content: input.answer,
+          sourceType: 'interview',
+          confidence: 1.0,
+          metadata: { tags: ['onboarding', config.label], onboardingStep: input.step },
+        });
+
+        // Fire-and-forget graph pipeline for text answers
+        processContent(ctx.user.id, input.answer, 'interview');
+
+        return { success: true, nodeId: node.id };
+      }),
+
+    complete: protectedProcedure.mutation(async ({ ctx }) => {
+      await updateProfile(ctx.user.id, { onboardingComplete: true });
+      return { success: true };
+    }),
   }),
 
   persona: personaRouter,

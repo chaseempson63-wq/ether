@@ -53,6 +53,8 @@ export const profiles = pgTable("profiles", {
   userId: integer("user_id").notNull().unique(),
   bio: text("bio"),
   headline: varchar("headline", { length: 255 }),
+  onboardingComplete: boolean("onboarding_complete").notNull().default(false),
+  voiceStyle: varchar("voice_style", { length: 32 }),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 });

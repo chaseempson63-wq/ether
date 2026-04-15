@@ -1,7 +1,6 @@
-import { useState, useCallback, useRef, useEffect, useMemo } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { useLocation } from "wouter";
 import ForceGraph2D, { type ForceGraphMethods } from "react-force-graph-2d";
-import { forceX, forceY } from "d3-force";
 import { trpc } from "@/lib/trpc";
 import { useCompanion } from "@/companion";
 import {
@@ -136,8 +135,8 @@ export default function MindMap() {
     return () => observer.disconnect();
   }, []);
 
-  // ─── Filter graph data by active layer (memoized for stable reference) ───
-  const filteredData = useMemo(() => {
+  // ─── Filter graph data by active layer ───
+  const filteredData = (() => {
     if (!graphQuery.data) return { nodes: [], links: [] };
     const nodes = activeLayer
       ? graphQuery.data.nodes.filter((n) => n.hallidayLayer === activeLayer)
@@ -150,53 +149,40 @@ export default function MindMap() {
     });
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     return { nodes, links } as any;
-  }, [graphQuery.data, activeLayer]);
+  })();
 
-  // ─── d3-force config for Obsidian-style clustering ───
-  // On data change: unpin all nodes, configure forces with true center, reheat
+  // ─── d3-force config (clean slate — charge + link only) ───
   useEffect(() => {
     const fg = graphRef.current;
     if (!fg) return;
-    // Unpin all nodes so layout recalculates fresh
+    // Unpin all nodes so layout recalculates
     filteredData.nodes?.forEach((n: any) => { n.fx = undefined; n.fy = undefined; });
-
-    fg.d3Force("charge")?.strength(-150);
-    fg.d3Force("link")?.strength(0.8).distance(50);
-    // Center force at actual canvas center (not 0,0)
-    const cx = containerSize.width / 2;
-    const cy = containerSize.height / 2;
-    fg.d3Force("center")?.x(cx).y(cy);
-    // Gentle centering gravity so nodes stay in the middle of the full canvas
-    fg.d3Force("forceX", forceX(cx).strength(0.05));
-    fg.d3Force("forceY", forceY(cy).strength(0.05));
+    // Remove ALL custom forces — let the library handle centering
+    fg.d3Force("center", null);
+    fg.d3Force("x", null);
+    fg.d3Force("y", null);
+    // Simple repulsion + link attraction
+    fg.d3Force("charge")?.strength(-200);
+    fg.d3Force("link")?.distance(80).strength(0.4);
     fg.d3ReheatSimulation();
-  }, [activeLayer, graphQuery.data, containerSize]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [graphQuery.data, activeLayer]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Pin all nodes once simulation settles — boundary clamp + zoom to fit
+  // Pin all nodes once simulation settles + zoom to fit. Nothing else.
   const handleEngineStop = useCallback(() => {
     const fg = graphRef.current;
     if (!fg) return;
-    const w = containerSize.width;
-    const h = containerSize.height;
-    const margin = 80;
-    // Clamp nodes away from edges, then pin
     filteredData.nodes?.forEach((n: any) => {
-      if (n.x != null && n.y != null) {
-        n.x = Math.max(-w / 2 + margin, Math.min(w / 2 - margin, n.x));
-        n.y = Math.max(-h / 2 + margin, Math.min(h / 2 - margin, n.y));
-        n.fx = n.x;
-        n.fy = n.y;
-      }
+      if (n.x != null) n.fx = n.x;
+      if (n.y != null) n.fy = n.y;
     });
-    fg.zoomToFit(400, 120);
-  }, [filteredData.nodes, containerSize]);
+    fg.zoomToFit(400, 80);
+  }, [filteredData.nodes]);
 
-  // Update pinned position while dragging
+  // Dragging updates pinned position
   const handleNodeDrag = useCallback((node: any) => {
     node.fx = node.x;
     node.fy = node.y;
   }, []);
-
   const handleNodeDragEnd = useCallback((node: any) => {
     node.fx = node.x;
     node.fy = node.y;
@@ -400,9 +386,10 @@ export default function MindMap() {
             backgroundColor="#080b14"
             width={containerSize.width}
             height={containerSize.height}
-            d3AlphaDecay={0.03}
+            cooldownTicks={200}
+            d3AlphaDecay={0.02}
             d3VelocityDecay={0.3}
-            cooldownTicks={100}
+            warmupTicks={0}
             nodeId="id"
             linkSource="source"
             linkTarget="target"

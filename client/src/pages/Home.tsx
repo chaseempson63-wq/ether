@@ -1,28 +1,10 @@
 import { useAuth } from "@/_core/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { useLocation } from "wouter";
-import { useEffect } from "react";
 
 export default function Home() {
-  const { isAuthenticated, loading } = useAuth();
+  const { isAuthenticated } = useAuth();
   const [, setLocation] = useLocation();
-
-  // Authenticated users should never see the landing page —
-  // redirect to /dashboard (AuthGuard there handles onboarding check)
-  useEffect(() => {
-    if (!loading && isAuthenticated) {
-      setLocation("/dashboard");
-    }
-  }, [loading, isAuthenticated, setLocation]);
-
-  // Show nothing while auth is loading or redirecting
-  if (loading || isAuthenticated) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-800 flex items-center justify-center">
-        <div className="animate-pulse text-slate-400 text-sm">Loading...</div>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-800 text-white">

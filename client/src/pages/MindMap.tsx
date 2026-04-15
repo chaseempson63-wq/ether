@@ -149,13 +149,37 @@ export default function MindMap() {
   })();
 
   // ─── d3-force config for Obsidian-style clustering ───
+  // On data change: unpin all nodes, configure forces, reheat simulation
   useEffect(() => {
     const fg = graphRef.current;
     if (!fg) return;
+    // Unpin all nodes so layout recalculates fresh
+    filteredData.nodes?.forEach((n: any) => { n.fx = undefined; n.fy = undefined; });
     fg.d3Force("charge")?.strength(-150);
     fg.d3Force("link")?.strength(0.8).distance(50);
     fg.d3ReheatSimulation();
-  }, [activeLayer, graphQuery.data]);
+  }, [activeLayer, graphQuery.data]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Pin all nodes once simulation settles — makes zoom/pan stable
+  const handleEngineStop = useCallback(() => {
+    const fg = graphRef.current;
+    if (!fg) return;
+    filteredData.nodes?.forEach((n: any) => {
+      if (n.x != null) n.fx = n.x;
+      if (n.y != null) n.fy = n.y;
+    });
+  }, [filteredData.nodes]);
+
+  // Update pinned position while dragging
+  const handleNodeDrag = useCallback((node: any) => {
+    node.fx = node.x;
+    node.fy = node.y;
+  }, []);
+
+  const handleNodeDragEnd = useCallback((node: any) => {
+    node.fx = node.x;
+    node.fy = node.y;
+  }, []);
 
   // ─── Hovered node edge set ───
   const hoveredEdgeSet = (() => {
@@ -175,15 +199,15 @@ export default function MindMap() {
   const drawNode = useCallback(
     (node: GraphNode, ctx: CanvasRenderingContext2D, globalScale: number) => {
       const color = LAYER_COLORS[node.hallidayLayer] ?? "#64748b";
-      const radius = 3 + node.depth * 14 + Math.max(node.edgeCount * 0.8, 0);
+      const radius = Math.min(6 + node.depth * 10 + Math.max(node.edgeCount * 0.8, 0), 16);
       const isHovered = hoveredNode?.id === node.id;
       const x = node.x ?? 0;
       const y = node.y ?? 0;
 
-      // Ambient glow
-      const glowAlpha = isHovered ? 0.3 : 0.12;
+      // Ambient glow halo
+      const glowAlpha = isHovered ? 0.2 : 0.08;
       ctx.beginPath();
-      ctx.arc(x, y, radius + 6, 0, Math.PI * 2);
+      ctx.arc(x, y, radius * 2.5, 0, Math.PI * 2);
       ctx.fillStyle =
         color +
         Math.round(glowAlpha * 255)
@@ -223,7 +247,7 @@ export default function MindMap() {
       const isHighlighted = hoveredEdgeSet.has(key);
 
       const srcColor = LAYER_COLORS[src.hallidayLayer] ?? "#64748b";
-      const alpha = isHighlighted ? 0.6 : 0.08 + edge.strength * 0.12;
+      const alpha = isHighlighted ? 0.6 : 0.20 + edge.strength * 0.15;
       const width = isHighlighted ? 1.5 : 0.4 + edge.strength * 0.8;
 
       ctx.beginPath();
@@ -340,7 +364,7 @@ export default function MindMap() {
             graphData={filteredData}
             nodeCanvasObject={drawNode}
             nodePointerAreaPaint={(node: GraphNode, color, ctx) => {
-              const r = 3 + node.depth * 14 + Math.max(node.edgeCount * 0.8, 0);
+              const r = Math.min(6 + node.depth * 10 + Math.max(node.edgeCount * 0.8, 0), 16);
               ctx.fillStyle = color;
               ctx.beginPath();
               ctx.arc(node.x ?? 0, node.y ?? 0, r + 4, 0, Math.PI * 2);
@@ -349,12 +373,15 @@ export default function MindMap() {
             linkCanvasObject={drawLink}
             onNodeClick={handleNodeClick}
             onNodeHover={handleNodeHover}
+            onNodeDrag={handleNodeDrag}
+            onNodeDragEnd={handleNodeDragEnd}
+            onEngineStop={handleEngineStop}
             backgroundColor="#080b14"
             width={containerSize.width}
             height={containerSize.height}
             d3AlphaDecay={0.015}
             d3VelocityDecay={0.25}
-            cooldownTicks={300}
+            cooldownTicks={100}
             warmupTicks={50}
             nodeId="id"
             linkSource="source"
@@ -382,7 +409,7 @@ export default function MindMap() {
         {/* ─── Prompt pills (collapsed) / expanded answer ─── */}
         {visiblePrompts.length > 0 && (
           <div className="absolute top-4 left-4 flex flex-col gap-2 z-10" style={{ maxWidth: expandedPrompt ? "340px" : "260px" }}>
-            {visiblePrompts.slice(0, 2).map((prompt) => {
+            {visiblePrompts.slice(0, 3).map((prompt) => {
               const isExpanded = expandedPrompt === prompt.id;
               const color = LAYER_COLORS[prompt.targetLayer] ?? "#64748b";
 

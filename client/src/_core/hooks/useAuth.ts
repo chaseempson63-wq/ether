@@ -11,6 +11,10 @@ export function useAuth() {
     supabase.auth.getSession().then(({ data }) => {
       setUser(data.session?.user ?? null);
       setLoading(false);
+    }).catch(() => {
+      // Supabase unreachable or session corrupt — render as unauthenticated
+      setUser(null);
+      setLoading(false);
     });
 
     // Listen for changes (login, logout, token refresh)

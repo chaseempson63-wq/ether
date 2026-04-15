@@ -120,48 +120,52 @@ export const homeRouter = router({
   nudge: protectedProcedure.query(async ({ ctx }) => {
     const stats = await getActivityStats(ctx.user.id);
 
-    // Priority order: Halliday → sparse layer → reflection → quick memory
+    // Priority matches Home page card highlighting order:
+    // 1. Halliday → 2. Quick Memory → 3. Reflection → 4. Sparse layer
+
+    // Priority 1: Halliday Interview
     const hallidayDays = daysSince(stats.lastHalliday);
     if (hallidayDays === null || hallidayDays >= 3) {
-      const d = hallidayDays ?? 0;
       return {
-        message:
-          d === 0
-            ? "You haven't started the Halliday interview yet. One session fills gaps fast."
-            : `No interview in ${d} days. One session fills gaps fast.`,
+        message: hallidayDays === null
+          ? "You haven't started the Halliday interview yet. One session fills gaps fast."
+          : `No interview in ${hallidayDays} days. One session fills gaps fast.`,
         cta: { label: "Start interview", href: "/halliday" },
       };
     }
 
-    const sparse = sparsestLayer(stats.layerCounts);
-    if (sparse) {
-      return {
-        message: `Your ${LAYER_LABELS[sparse.layer] ?? sparse.layer} layer is thin — ${sparse.count} node${sparse.count !== 1 ? "s" : ""}.`,
-        cta: { label: "Go deeper", href: "/halliday" },
-      };
-    }
-
-    const reflectionDays = daysSince(stats.lastReflection);
-    if (reflectionDays === null || reflectionDays >= 2) {
-      const d = reflectionDays ?? 0;
-      return {
-        message:
-          d === 0
-            ? "No reflections yet. A quick check-in deepens everything."
-            : `No reflection in ${d} days. A quick check-in deepens everything.`,
-        cta: { label: "Start reflecting", href: "/reflection" },
-      };
-    }
-
+    // Priority 2: Quick Memory
     const quickDays = daysSince(stats.lastQuickMemory);
     if (quickDays === null || quickDays >= 3) {
       return {
-        message: "Nothing captured recently. Drop a thought.",
+        message: quickDays === null
+          ? "No quick memories yet. Drop a thought."
+          : "Nothing captured recently. Drop a thought.",
         cta: { label: "Capture now", href: "/quick" },
       };
     }
 
-    // All good
+    // Priority 3: Daily Reflection
+    const reflectionDays = daysSince(stats.lastReflection);
+    if (reflectionDays === null || reflectionDays >= 2) {
+      return {
+        message: reflectionDays === null
+          ? "No reflections yet. A quick check-in deepens everything."
+          : `No reflection in ${reflectionDays} days. A quick check-in deepens everything.`,
+        cta: { label: "Start reflecting", href: "/reflection" },
+      };
+    }
+
+    // Priority 4: Sparse layer → Mind Map
+    const sparse = sparsestLayer(stats.layerCounts);
+    if (sparse) {
+      return {
+        message: `Your ${LAYER_LABELS[sparse.layer] ?? sparse.layer} layer is thin — ${sparse.count} node${sparse.count !== 1 ? "s" : ""}.`,
+        cta: { label: "Go deeper", href: "/mind-map" },
+      };
+    }
+
+    // All good — no nudge
     return null;
   }),
 });

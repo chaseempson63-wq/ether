@@ -60,9 +60,48 @@ type Stats = {
   totalNodes: number;
 };
 
-function getHighlight(href: string, stats: Stats | undefined): Highlight | null {
-  if (!stats) return null;
+/**
+ * Returns a Set of hrefs (max 2) that should be highlighted,
+ * ranked by urgency. Only input-oriented cards qualify.
+ */
+function getHighlightedHrefs(stats: Stats | undefined): Map<string, string> {
+  if (!stats) return new Map();
 
+  const ranked: Array<{ href: string; reason: string }> = [];
+
+  // Priority 1: Halliday Interview — no session ever, or 3+ days stale
+  const hallidayDays = daysSince(stats.lastHalliday);
+  if (hallidayDays === null) {
+    ranked.push({ href: "/halliday", reason: "No interview yet — start building your identity" });
+  } else if (hallidayDays >= 3) {
+    ranked.push({ href: "/halliday", reason: `${hallidayDays} days since your last session` });
+  }
+
+  // Priority 2: Interview Mode — same signal as halliday (no dedicated tracking yet)
+  // Skip if halliday already ranked — they serve a similar purpose
+  if (ranked.length === 0 || ranked[0].href !== "/halliday") {
+    if (hallidayDays === null) {
+      ranked.push({ href: "/interview", reason: "Try a guided interview to get started" });
+    }
+  }
+
+  // Priority 3: Quick Memory — no memories in 3+ days
+  const quickDays = daysSince(stats.lastQuickMemory);
+  if (quickDays === null) {
+    ranked.push({ href: "/quick", reason: "No quick memories yet — drop a thought" });
+  } else if (quickDays >= 3) {
+    ranked.push({ href: "/quick", reason: `Nothing captured in ${quickDays} days` });
+  }
+
+  // Priority 4: Daily Reflection — no reflection in 2+ days
+  const reflectionDays = daysSince(stats.lastReflection);
+  if (reflectionDays === null) {
+    ranked.push({ href: "/reflection", reason: "No reflections yet — check in with yourself" });
+  } else if (reflectionDays >= 2) {
+    ranked.push({ href: "/reflection", reason: `${reflectionDays} days since your last reflection` });
+  }
+
+  // Priority 5: Mind Map — any layer < 5 nodes
   const LAYER_MIN = 5;
   const sparseLayers = Object.entries({
     voice_and_language: "voice",
@@ -72,36 +111,19 @@ function getHighlight(href: string, stats: Stats | undefined): Highlight | null 
     emotional_patterns: "emotional",
   }).filter(([key]) => (stats.layerCounts[key] ?? 0) < LAYER_MIN);
 
-  switch (href) {
-    case "/halliday": {
-      const d = daysSince(stats.lastHalliday);
-      if (d === null) return { reason: "No interview yet — start building your identity" };
-      if (d >= 3) return { reason: `${d} days since your last session` };
-      return null;
-    }
-    case "/reflection": {
-      const d = daysSince(stats.lastReflection);
-      if (d === null) return { reason: "No reflections yet — check in with yourself" };
-      if (d >= 2) return { reason: `${d} days since your last reflection` };
-      return null;
-    }
-    case "/quick": {
-      const d = daysSince(stats.lastQuickMemory);
-      if (d === null) return { reason: "No quick memories yet — drop a thought" };
-      if (d >= 3) return { reason: `Nothing captured in ${d} days` };
-      return null;
-    }
-    case "/mind-map":
-    case "/dashboard": {
-      if (sparseLayers.length > 0) {
-        const [, label] = sparseLayers[0];
-        return { reason: `Your ${label} layer needs depth` };
-      }
-      return null;
-    }
-    default:
-      return null;
+  if (sparseLayers.length > 0) {
+    const [, label] = sparseLayers[0];
+    ranked.push({ href: "/mind-map", reason: `Your ${label} layer needs depth` });
   }
+
+  // Dashboard + Persona Chat never highlight
+
+  // Take top 2 only
+  const result = new Map<string, string>();
+  for (const item of ranked.slice(0, 2)) {
+    result.set(item.href, item.reason);
+  }
+  return result;
 }
 
 // ─── Component ───
@@ -135,8 +157,10 @@ export default function Home() {
         )}
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {navItems.map((item) => {
-            const highlight = item.locked ? null : getHighlight(item.href, statsQuery.data as Stats | undefined);
+          {(() => {
+            const highlighted = getHighlightedHrefs(statsQuery.data as Stats | undefined);
+            return navItems.map((item) => {
+            const reason = item.locked ? null : highlighted.get(item.href) ?? null;
 
             if (item.locked) {
               return (
@@ -174,7 +198,7 @@ export default function Home() {
               <Card
                 key={item.href}
                 className={`bg-slate-800/60 hover:bg-slate-800 cursor-pointer transition-colors ${
-                  highlight
+                  reason
                     ? "border-blue-500/50 animate-card-pulse"
                     : "border-slate-700 hover:border-slate-600"
                 }`}
@@ -188,15 +212,16 @@ export default function Home() {
                   <CardDescription className="text-slate-400">
                     {item.description}
                   </CardDescription>
-                  {highlight && (
+                  {reason && (
                     <p className="text-[10px] text-blue-500 opacity-80 mt-1 font-sora">
-                      {highlight.reason}
+                      {reason}
                     </p>
                   )}
                 </CardHeader>
               </Card>
             );
-          })}
+          });
+          })()}
         </div>
 
         <div className="text-center text-slate-500 text-sm mt-12">

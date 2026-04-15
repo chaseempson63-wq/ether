@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useEffect } from "react";
+import { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import { useLocation } from "wouter";
 import ForceGraph2D, { type ForceGraphMethods } from "react-force-graph-2d";
 import { forceX, forceY } from "d3-force";
@@ -108,7 +108,10 @@ export default function MindMap() {
 
   // ─── Queries ───
   const graphQuery = trpc.mindMap.graph.useQuery(undefined, {
-    staleTime: 30_000,
+    staleTime: Infinity,
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
+    refetchOnReconnect: false,
   });
   const promptsQuery = trpc.mindMap.prompts.useQuery(undefined, {
     staleTime: 120_000,
@@ -133,8 +136,8 @@ export default function MindMap() {
     return () => observer.disconnect();
   }, []);
 
-  // ─── Filter graph data by active layer ───
-  const filteredData = (() => {
+  // ─── Filter graph data by active layer (memoized for stable reference) ───
+  const filteredData = useMemo(() => {
     if (!graphQuery.data) return { nodes: [], links: [] };
     const nodes = activeLayer
       ? graphQuery.data.nodes.filter((n) => n.hallidayLayer === activeLayer)
@@ -147,7 +150,7 @@ export default function MindMap() {
     });
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     return { nodes, links } as any;
-  })();
+  }, [graphQuery.data, activeLayer]);
 
   // ─── d3-force config for Obsidian-style clustering ───
   // On data change: unpin all nodes, configure forces with true center, reheat
@@ -169,17 +172,24 @@ export default function MindMap() {
     fg.d3ReheatSimulation();
   }, [activeLayer, graphQuery.data, containerSize]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Pin all nodes once simulation settles + zoom to fit
+  // Pin all nodes once simulation settles — boundary clamp + zoom to fit
   const handleEngineStop = useCallback(() => {
     const fg = graphRef.current;
     if (!fg) return;
+    const w = containerSize.width;
+    const h = containerSize.height;
+    const margin = 80;
+    // Clamp nodes away from edges, then pin
     filteredData.nodes?.forEach((n: any) => {
-      if (n.x != null) n.fx = n.x;
-      if (n.y != null) n.fy = n.y;
+      if (n.x != null && n.y != null) {
+        n.x = Math.max(-w / 2 + margin, Math.min(w / 2 - margin, n.x));
+        n.y = Math.max(-h / 2 + margin, Math.min(h / 2 - margin, n.y));
+        n.fx = n.x;
+        n.fy = n.y;
+      }
     });
-    // Zoom to fit all nodes with 50px padding, 400ms animation
-    fg.zoomToFit(400, 50);
-  }, [filteredData.nodes]);
+    fg.zoomToFit(400, 120);
+  }, [filteredData.nodes, containerSize]);
 
   // Update pinned position while dragging
   const handleNodeDrag = useCallback((node: any) => {
@@ -210,15 +220,15 @@ export default function MindMap() {
   const drawNode = useCallback(
     (node: GraphNode, ctx: CanvasRenderingContext2D, globalScale: number) => {
       const color = LAYER_COLORS[node.hallidayLayer] ?? "#64748b";
-      const radius = Math.min(6 + node.depth * 10 + Math.max(node.edgeCount * 0.8, 0), 16);
+      const radius = Math.min(6 + node.depth * 6 + Math.min(node.edgeCount * 0.5, 4), 12);
       const isHovered = hoveredNode?.id === node.id;
       const x = node.x ?? 0;
       const y = node.y ?? 0;
 
-      // Ambient glow halo
-      const glowAlpha = isHovered ? 0.2 : 0.08;
+      // Ambient glow halo (1.8x radius, subtle)
+      const glowAlpha = isHovered ? 0.15 : 0.06;
       ctx.beginPath();
-      ctx.arc(x, y, radius * 2.5, 0, Math.PI * 2);
+      ctx.arc(x, y, radius * 1.8, 0, Math.PI * 2);
       ctx.fillStyle =
         color +
         Math.round(glowAlpha * 255)
@@ -375,7 +385,7 @@ export default function MindMap() {
             graphData={filteredData}
             nodeCanvasObject={drawNode}
             nodePointerAreaPaint={(node: GraphNode, color, ctx) => {
-              const r = Math.min(6 + node.depth * 10 + Math.max(node.edgeCount * 0.8, 0), 16);
+              const r = Math.min(6 + node.depth * 6 + Math.min(node.edgeCount * 0.5, 4), 12);
               ctx.fillStyle = color;
               ctx.beginPath();
               ctx.arc(node.x ?? 0, node.y ?? 0, r + 4, 0, Math.PI * 2);
@@ -390,10 +400,9 @@ export default function MindMap() {
             backgroundColor="#080b14"
             width={containerSize.width}
             height={containerSize.height}
-            d3AlphaDecay={0.015}
-            d3VelocityDecay={0.25}
+            d3AlphaDecay={0.03}
+            d3VelocityDecay={0.3}
             cooldownTicks={100}
-            warmupTicks={50}
             nodeId="id"
             linkSource="source"
             linkTarget="target"

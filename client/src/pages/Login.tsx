@@ -31,8 +31,7 @@ export default function Login() {
       return;
     }
 
-    // AuthGuard on /dashboard will redirect to /onboarding if incomplete
-    window.location.href = "/dashboard";
+    window.location.href = "/";
   };
 
   return (

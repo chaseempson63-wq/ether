@@ -34,11 +34,11 @@ function Router() {
   return (
     <Switch>
       {/* Public routes */}
-      <Route path="/" component={Home} />
       <Route path="/login" component={Login} />
       <Route path="/register" component={Register} />
 
       {/* Protected routes */}
+      <Route path="/">{() => <Protected><Home /></Protected>}</Route>
       <Route path="/onboarding">{() => <Protected><Onboarding /></Protected>}</Route>
       <Route path="/halliday">{() => <Protected><HallidayInterview /></Protected>}</Route>
       <Route path="/quick">{() => <Protected><QuickMemory /></Protected>}</Route>

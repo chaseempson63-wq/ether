@@ -121,7 +121,7 @@ export default function Onboarding() {
   const handleIntentChoice = (choice: "build" | "capture") => {
     if (choice === "capture") {
       completeOnboarding.mutate(undefined, {
-        onSuccess: () => setLocation("/dashboard"),
+        onSuccess: () => setLocation("/"),
       });
       return;
     }

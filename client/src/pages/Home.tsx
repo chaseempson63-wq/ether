@@ -33,7 +33,7 @@ const navItems: NavItem[] = [
   { label: "Persona Chat", description: "Talk to your digital mind", href: "/chat", icon: MessageCircle },
   { label: "Quick Memory", description: "Capture a thought right now", href: "/quick", icon: Zap },
   { label: "Daily Reflection", description: "Journal and reflect on your day", href: "/reflection", icon: Calendar },
-  { label: "Interview Mode", description: "Guided conversational capture", href: "/interview", icon: Mic },
+  { label: "Interview Mode", description: "Progressive identity interview", href: "/interview", icon: Mic },
   { label: "Beneficiaries", description: "Manage who can access your mind", href: "/beneficiaries", icon: Users, locked: true },
 ];
 
@@ -56,6 +56,8 @@ type Stats = {
   lastReflection: Date | string | null;
   lastQuickMemory: Date | string | null;
   lastChat: Date | string | null;
+  lastInterview: Date | string | null;
+  interviewLevel1Complete: boolean;
   layerCounts: Record<string, number>;
   totalNodes: number;
 };
@@ -77,12 +79,9 @@ function getHighlightedHrefs(stats: Stats | undefined): Map<string, string> {
     ranked.push({ href: "/halliday", reason: `${hallidayDays} days since your last session` });
   }
 
-  // Priority 2: Interview Mode — same signal as halliday (no dedicated tracking yet)
-  // Skip if halliday already ranked — they serve a similar purpose
-  if (ranked.length === 0 || ranked[0].href !== "/halliday") {
-    if (hallidayDays === null) {
-      ranked.push({ href: "/interview", reason: "Try a guided interview to get started" });
-    }
+  // Priority 2: Interview Mode — if Level 1 not complete
+  if (!stats.interviewLevel1Complete) {
+    ranked.push({ href: "/interview", reason: "Complete Level 1 to unlock deeper questions" });
   }
 
   // Priority 3: Quick Memory — no memories in 3+ days
@@ -132,6 +131,7 @@ export default function Home() {
   const { user, logout } = useAuth();
   const [, setLocation] = useLocation();
   const statsQuery = trpc.home.stats.useQuery(undefined, { staleTime: 60_000 });
+  const interviewStatus = trpc.interviewMode.status.useQuery(undefined, { staleTime: 60_000 });
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-800 text-white p-6 font-sora">
@@ -210,7 +210,12 @@ export default function Home() {
                     {item.label}
                   </CardTitle>
                   <CardDescription className="text-slate-400">
-                    {item.description}
+                    {item.href === "/interview" && interviewStatus.data?.currentLevel
+                      ? (() => {
+                          const cl = interviewStatus.data.levels.find(l => l.level === interviewStatus.data!.currentLevel);
+                          return cl ? `Level ${cl.level} — ${cl.answered}/${cl.total}` : item.description;
+                        })()
+                      : item.description}
                   </CardDescription>
                   {reason && (
                     <p className="text-[10px] text-blue-500 opacity-80 mt-1 font-sora">

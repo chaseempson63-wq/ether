@@ -1,4 +1,4 @@
-import { integer, jsonb, pgEnum, pgTable, real, serial, text, timestamp, varchar, boolean, uuid, vector, index } from "drizzle-orm/pg-core";
+import { integer, jsonb, pgEnum, pgTable, real, serial, text, timestamp, varchar, boolean, uuid, vector, index, uniqueIndex } from "drizzle-orm/pg-core";
 
 // ─── Enum types (match CREATE TYPE in 001_init.sql) ───
 
@@ -272,3 +272,41 @@ export const memoryEdges = pgTable("memory_edges", {
 
 export type MemoryEdge = typeof memoryEdges.$inferSelect;
 export type InsertMemoryEdge = typeof memoryEdges.$inferInsert;
+
+// ─── Interview Mode (progressive leveling) ───
+
+export const interviewLevelStatusEnum = pgEnum("interview_level_status", [
+  "locked",
+  "in_progress",
+  "completed",
+]);
+
+export const interviewLevels = pgTable("interview_levels", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  userId: integer("user_id").notNull(),
+  level: integer("level").notNull(),
+  status: interviewLevelStatusEnum("status").notNull().default("locked"),
+  startedAt: timestamp("started_at", { withTimezone: true }),
+  completedAt: timestamp("completed_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  uniqueIndex("interview_levels_user_level_idx").on(table.userId, table.level),
+]);
+
+export type InterviewLevel = typeof interviewLevels.$inferSelect;
+
+export const interviewQuestions = pgTable("interview_questions_v2", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  userId: integer("user_id").notNull(),
+  level: integer("level").notNull(),
+  question: text("question").notNull(),
+  answer: text("answer"),
+  layer: hallidayLayerEnum("layer").notNull(),
+  orderIndex: integer("order_index").notNull(),
+  answeredAt: timestamp("answered_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  index("interview_questions_v2_user_level_idx").on(table.userId, table.level),
+]);
+
+export type InterviewQuestion = typeof interviewQuestions.$inferSelect;

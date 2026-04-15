@@ -4,6 +4,8 @@ import {
   hallidayProgress,
   memoryNodes,
   chatMessages,
+  interviewLevels,
+  interviewQuestions,
   hallidayLayerEnum,
 } from "../../drizzle/schema";
 import { eq, desc, max, sql, and } from "drizzle-orm";
@@ -25,6 +27,8 @@ interface ActivityStats {
   lastReflection: Date | null;
   lastQuickMemory: Date | null;
   lastChat: Date | null;
+  lastInterview: Date | null;
+  interviewLevel1Complete: boolean;
   layerCounts: Record<string, number>;
   totalNodes: number;
 }
@@ -37,13 +41,15 @@ async function getActivityStats(userId: number): Promise<ActivityStats> {
       lastReflection: null,
       lastQuickMemory: null,
       lastChat: null,
+      lastInterview: null,
+      interviewLevel1Complete: false,
       layerCounts: {},
       totalNodes: 0,
     };
   }
 
   // Run queries in parallel
-  const [progressRow, allNodes, chatRow] = await Promise.all([
+  const [progressRow, allNodes, chatRow, interviewAnswerRow, interviewL1Row] = await Promise.all([
     // Last Halliday interview
     db
       .select({ lastAt: hallidayProgress.lastQuestionAnsweredAt })
@@ -60,6 +66,21 @@ async function getActivityStats(userId: number): Promise<ActivityStats> {
       .select({ lastAt: max(chatMessages.createdAt) })
       .from(chatMessages)
       .where(eq(chatMessages.userId, userId))
+      .then((rows) => rows[0] ?? null),
+
+    // Last interview answer
+    db
+      .select({ lastAt: max(interviewQuestions.answeredAt) })
+      .from(interviewQuestions)
+      .where(eq(interviewQuestions.userId, userId))
+      .then((rows) => rows[0] ?? null),
+
+    // Interview Level 1 status
+    db
+      .select({ status: interviewLevels.status })
+      .from(interviewLevels)
+      .where(and(eq(interviewLevels.userId, userId), eq(interviewLevels.level, 1)))
+      .limit(1)
       .then((rows) => rows[0] ?? null),
   ]);
 
@@ -83,6 +104,8 @@ async function getActivityStats(userId: number): Promise<ActivityStats> {
     lastReflection,
     lastQuickMemory,
     lastChat: chatRow?.lastAt ?? null,
+    lastInterview: interviewAnswerRow?.lastAt ?? null,
+    interviewLevel1Complete: interviewL1Row?.status === "completed",
     layerCounts,
     totalNodes: allNodes.length,
   };
@@ -121,7 +144,7 @@ export const homeRouter = router({
     const stats = await getActivityStats(ctx.user.id);
 
     // Priority matches Home page card highlighting order:
-    // 1. Halliday → 2. Quick Memory → 3. Reflection → 4. Sparse layer
+    // 1. Halliday → 2. Interview Mode → 3. Quick Memory → 4. Reflection → 5. Sparse layer
 
     // Priority 1: Halliday Interview
     const hallidayDays = daysSince(stats.lastHalliday);
@@ -134,7 +157,15 @@ export const homeRouter = router({
       };
     }
 
-    // Priority 2: Quick Memory
+    // Priority 2: Interview Mode — Level 1 not complete
+    if (!stats.interviewLevel1Complete) {
+      return {
+        message: "Complete the Interview Mode foundation level. 20 questions to map your identity.",
+        cta: { label: "Continue interview", href: "/interview" },
+      };
+    }
+
+    // Priority 3: Quick Memory
     const quickDays = daysSince(stats.lastQuickMemory);
     if (quickDays === null || quickDays >= 3) {
       return {

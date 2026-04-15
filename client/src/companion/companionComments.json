@@ -83,6 +83,18 @@
     "Looking for gaps? The thin areas are where I need more from you.",
     "Your mind, growing. Check the edges — that's where insight hides."
   ],
+  "INTERVIEW_ANSWER": [
+    "Solid answer. That's another piece locked in.",
+    "Good. Every answer makes the next level sharper.",
+    "Noted. Keep going — the deeper levels are worth it.",
+    "That tells me something real. Moving on."
+  ],
+  "INTERVIEW_LEVEL_COMPLETE": [
+    "Level cleared. The next one gets personal.",
+    "Foundation laid. Now we go deeper.",
+    "Done. The questions ahead are built from what you just shared.",
+    "Level complete. Unlocking what comes next."
+  ],
   "MIND_MAP_GAP_ANSWERED": [
     "That filled a gap. Watch the graph update.",
     "New node, new connections. The map just got richer.",

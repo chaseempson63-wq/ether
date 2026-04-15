@@ -128,6 +128,14 @@ export function checkMutationTrigger(
       trigger = "MIND_MAP_GAP_ANSWERED";
       break;
     }
+    case "interviewMode.answer": {
+      trigger = "INTERVIEW_ANSWER";
+      break;
+    }
+    case "interviewMode.levelComplete": {
+      trigger = "INTERVIEW_LEVEL_COMPLETE";
+      break;
+    }
     case "persona.goodResult": {
       trigger = "PERSONA_CHAT_GOOD_RESULT";
       break;

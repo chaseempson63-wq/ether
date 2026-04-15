@@ -9,6 +9,7 @@ import { z } from "zod";
 import { getOrCreateProfile, updateProfile, createMemoryNode, getMemoryNodesByUserId, createMemoryEdge, getMemoryEdgesByUserId } from "./db";
 import { personaRouter } from "./routers/persona";
 import { interviewRouter } from "./routers/interview";
+import { interviewModeRouter } from "./routers/interviewMode";
 import { mindMapRouter } from "./routers/mindMap";
 import { homeRouter } from "./routers/home";
 import { processContent } from "./graphPipeline";
@@ -352,6 +353,7 @@ export const appRouter = router({
 
   persona: personaRouter,
   interview: interviewRouter,
+  interviewMode: interviewModeRouter,
   mindMap: mindMapRouter,
   home: homeRouter,
 });

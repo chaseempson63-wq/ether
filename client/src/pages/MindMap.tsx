@@ -1,6 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { useLocation } from "wouter";
 import ForceGraph2D, { type ForceGraphMethods } from "react-force-graph-2d";
+import { forceX, forceY } from "d3-force";
 import { trpc } from "@/lib/trpc";
 import { useCompanion } from "@/companion";
 import {
@@ -149,18 +150,26 @@ export default function MindMap() {
   })();
 
   // ─── d3-force config for Obsidian-style clustering ───
-  // On data change: unpin all nodes, configure forces, reheat simulation
+  // On data change: unpin all nodes, configure forces with true center, reheat
   useEffect(() => {
     const fg = graphRef.current;
     if (!fg) return;
     // Unpin all nodes so layout recalculates fresh
     filteredData.nodes?.forEach((n: any) => { n.fx = undefined; n.fy = undefined; });
+
     fg.d3Force("charge")?.strength(-150);
     fg.d3Force("link")?.strength(0.8).distance(50);
+    // Center force at actual canvas center (not 0,0)
+    const cx = containerSize.width / 2;
+    const cy = containerSize.height / 2;
+    fg.d3Force("center")?.x(cx).y(cy);
+    // Gentle centering gravity so nodes stay in the middle of the full canvas
+    fg.d3Force("forceX", forceX(cx).strength(0.05));
+    fg.d3Force("forceY", forceY(cy).strength(0.05));
     fg.d3ReheatSimulation();
-  }, [activeLayer, graphQuery.data]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [activeLayer, graphQuery.data, containerSize]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Pin all nodes once simulation settles — makes zoom/pan stable
+  // Pin all nodes once simulation settles + zoom to fit
   const handleEngineStop = useCallback(() => {
     const fg = graphRef.current;
     if (!fg) return;
@@ -168,6 +177,8 @@ export default function MindMap() {
       if (n.x != null) n.fx = n.x;
       if (n.y != null) n.fy = n.y;
     });
+    // Zoom to fit all nodes with 50px padding, 400ms animation
+    fg.zoomToFit(400, 50);
   }, [filteredData.nodes]);
 
   // Update pinned position while dragging
@@ -485,9 +496,9 @@ export default function MindMap() {
           </div>
         )}
 
-        {/* ─── Node detail panel ─── */}
+        {/* ─── Node detail panel (fixed overlay, doesn't reduce graph width) ─── */}
         <div
-          className={`absolute top-0 right-0 h-full w-[360px] z-20 transition-transform duration-300 ease-out ${
+          className={`fixed top-0 right-0 h-full w-[360px] z-30 transition-transform duration-300 ease-out ${
             selectedNode ? "translate-x-0" : "translate-x-full"
           }`}
           style={{

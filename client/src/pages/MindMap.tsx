@@ -127,8 +127,10 @@ export default function MindMap() {
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
-    const update = () =>
+    const update = () => {
+      console.log('Container element:', el.clientWidth, el.clientHeight, 'offset:', el.offsetWidth, el.offsetHeight, 'window:', window.innerWidth, window.innerHeight);
       setContainerSize({ width: el.clientWidth, height: el.clientHeight });
+    };
     update();
     const observer = new ResizeObserver(update);
     observer.observe(el);
@@ -365,6 +367,7 @@ export default function MindMap() {
 
       {/* ─── Main area ─── */}
       <div className="flex-1 relative" ref={containerRef}>
+        {console.log('ForceGraph dimensions:', containerSize.width, containerSize.height, 'window:', typeof window !== 'undefined' ? window.innerWidth : 0, typeof window !== 'undefined' ? window.innerHeight : 0)}
         {filteredData.nodes.length > 0 ? (
           <ForceGraph2D
             ref={graphRef}

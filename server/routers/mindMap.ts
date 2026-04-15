@@ -144,14 +144,13 @@ export const mindMapRouter = router({
         messages: [
           {
             role: "system",
-            content: `You are a gap-analysis engine for a personal identity knowledge graph. Given a summary of the user's graph, generate exactly 3 thoughtful questions that target the weakest areas. Each question should help the user reveal something meaningful about themselves.
+            content: `You are a gap-analysis engine for a personal identity knowledge graph. Generate exactly 3 questions targeting the weakest areas of the user's graph.
 
-Return ONLY a JSON array of objects with these fields:
-- "question": a warm, conversational question (1-2 sentences)
-- "targetLayer": one of [${HALLIDAY_LAYERS.join(", ")}]
-- "targetNodeType": one of [${NODE_TYPES.join(", ")}]
-
-Focus on sparse layers and missing node types. Questions should feel personal, not clinical.`,
+Rules:
+- Each question must be 8-12 words max. Direct and specific, not therapeutic or flowery.
+- Examples of good questions: "What lesson did only failure teach you?" / "Who do you call when everything breaks?" / "What skill are you most proud of?"
+- Return ONLY a JSON array of objects with: "question", "targetLayer" (one of [${HALLIDAY_LAYERS.join(", ")}]), "targetNodeType" (one of [${NODE_TYPES.join(", ")}])
+- Focus on sparse layers and missing node types.`,
           },
           {
             role: "user",

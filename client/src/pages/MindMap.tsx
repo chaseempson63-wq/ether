@@ -3,8 +3,6 @@ import { useLocation } from "wouter";
 import ForceGraph2D, { type ForceGraphMethods } from "react-force-graph-2d";
 import { trpc } from "@/lib/trpc";
 import { useCompanion } from "@/companion";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import {
   ArrowLeft,
   Loader2,
@@ -25,14 +23,13 @@ const LAYER_COLORS: Record<string, string> = {
 };
 
 const LAYER_LABELS: Record<string, string> = {
-  voice_and_language: "Voice & Language",
-  memory_and_life_events: "Memory & Life",
-  reasoning_and_decisions: "Reasoning",
-  values_and_beliefs: "Values & Beliefs",
-  emotional_patterns: "Emotional",
+  voice_and_language: "VOICE",
+  memory_and_life_events: "MEMORY",
+  reasoning_and_decisions: "REASONING",
+  values_and_beliefs: "VALUES",
+  emotional_patterns: "EMOTIONAL",
 };
 
-/** Map halliday layer enum → Halliday interview category ID */
 const LAYER_TO_CATEGORY: Record<string, string> = {
   voice_and_language: "voice_language",
   memory_and_life_events: "memory_life_events",
@@ -42,27 +39,19 @@ const LAYER_TO_CATEGORY: Record<string, string> = {
 };
 
 const THRESHOLDS = [
-  { pct: 0.2, label: "Seed" },
-  { pct: 0.4, label: "Emerging" },
-  { pct: 0.6, label: "Developing" },
-  { pct: 0.8, label: "Established" },
-  { pct: 1.0, label: "Complete" },
+  { pct: 0.2, label: "SEED" },
+  { pct: 0.4, label: "EMERGING" },
+  { pct: 0.6, label: "DEVELOPING" },
+  { pct: 0.8, label: "ESTABLISHED" },
+  { pct: 1.0, label: "COMPLETE" },
 ];
 
 function getThresholdLabel(pct: number) {
   for (const t of THRESHOLDS) {
     if (pct <= t.pct) return t.label;
   }
-  return "Complete";
+  return "COMPLETE";
 }
-
-const THRESHOLD_COLORS: Record<string, string> = {
-  Seed: "bg-red-500",
-  Emerging: "bg-orange-500",
-  Developing: "bg-yellow-500",
-  Established: "bg-blue-500",
-  Complete: "bg-green-500",
-};
 
 // ─── Types ───
 
@@ -87,7 +76,6 @@ type GraphEdge = {
   strength: number;
 };
 
-/** Extract the string ID from a link endpoint (string before ForceGraph processes, object after) */
 function edgeNodeId(endpoint: string | GraphNode): string {
   return typeof endpoint === "string" ? endpoint : endpoint.id;
 }
@@ -106,9 +94,10 @@ export default function MindMap() {
   const { notifyMutation } = useCompanion();
   const graphRef = useRef<ForceGraphMethods<GraphNode, GraphEdge>>(undefined);
 
-  // ─── State ───
   const [selectedNode, setSelectedNode] = useState<GraphNode | null>(null);
   const [activeLayer, setActiveLayer] = useState<string | null>(null);
+  const [hoveredNode, setHoveredNode] = useState<GraphNode | null>(null);
+  const [expandedPrompt, setExpandedPrompt] = useState<string | null>(null);
   const [dismissedPrompts, setDismissedPrompts] = useState<Set<string>>(
     () => new Set()
   );
@@ -127,6 +116,7 @@ export default function MindMap() {
     onSuccess: () => {
       graphQuery.refetch();
       promptsQuery.refetch();
+      setExpandedPrompt(null);
     },
   });
 
@@ -134,12 +124,9 @@ export default function MindMap() {
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
-
-    const update = () => {
+    const update = () =>
       setContainerSize({ width: el.clientWidth, height: el.clientHeight });
-    };
     update();
-
     const observer = new ResizeObserver(update);
     observer.observe(el);
     return () => observer.disconnect();
@@ -148,90 +135,129 @@ export default function MindMap() {
   // ─── Filter graph data by active layer ───
   const filteredData = (() => {
     if (!graphQuery.data) return { nodes: [], links: [] };
-
     const nodes = activeLayer
       ? graphQuery.data.nodes.filter((n) => n.hallidayLayer === activeLayer)
       : graphQuery.data.nodes;
-
     const nodeIds = new Set(nodes.map((n) => n.id));
     const links = graphQuery.data.edges.filter((e) => {
       const src = edgeNodeId(e.source);
       const tgt = edgeNodeId(e.target);
       return nodeIds.has(src) && nodeIds.has(tgt);
     });
-
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     return { nodes, links } as any;
+  })();
+
+  // ─── d3-force config for Obsidian-style clustering ───
+  useEffect(() => {
+    const fg = graphRef.current;
+    if (!fg) return;
+    fg.d3Force("charge")?.strength(-150);
+    fg.d3Force("link")?.strength(0.8).distance(50);
+    fg.d3ReheatSimulation();
+  }, [activeLayer, graphQuery.data]);
+
+  // ─── Hovered node edge set ───
+  const hoveredEdgeSet = (() => {
+    if (!hoveredNode || !graphQuery.data) return new Set<string>();
+    const set = new Set<string>();
+    for (const e of graphQuery.data.edges) {
+      const src = edgeNodeId(e.source);
+      const tgt = edgeNodeId(e.target);
+      if (src === hoveredNode.id || tgt === hoveredNode.id) {
+        set.add(`${src}__${tgt}`);
+      }
+    }
+    return set;
   })();
 
   // ─── Node renderer ───
   const drawNode = useCallback(
     (node: GraphNode, ctx: CanvasRenderingContext2D, globalScale: number) => {
       const color = LAYER_COLORS[node.hallidayLayer] ?? "#64748b";
-      const radius = 4 + node.depth * 16;
+      const radius = 3 + node.depth * 14 + Math.max(node.edgeCount * 0.8, 0);
+      const isHovered = hoveredNode?.id === node.id;
+      const x = node.x ?? 0;
+      const y = node.y ?? 0;
 
       // Ambient glow
+      const glowAlpha = isHovered ? 0.3 : 0.12;
       ctx.beginPath();
-      ctx.arc(node.x ?? 0, node.y ?? 0, radius + 4, 0, Math.PI * 2);
-      ctx.fillStyle = color + "26"; // 15% alpha
+      ctx.arc(x, y, radius + 6, 0, Math.PI * 2);
+      ctx.fillStyle =
+        color +
+        Math.round(glowAlpha * 255)
+          .toString(16)
+          .padStart(2, "0");
       ctx.fill();
 
       // Main circle
       ctx.beginPath();
-      ctx.arc(node.x ?? 0, node.y ?? 0, radius, 0, Math.PI * 2);
-      ctx.fillStyle = color + "cc"; // 80% alpha
+      ctx.arc(x, y, radius, 0, Math.PI * 2);
+      ctx.fillStyle = isHovered ? color : color + "b3";
       ctx.fill();
-      ctx.strokeStyle = color;
-      ctx.lineWidth = 1;
-      ctx.stroke();
 
-      // Label at sufficient zoom
-      if (globalScale > 1.5) {
-        ctx.font = `${Math.max(10 / globalScale, 3)}px Sora, system-ui, sans-serif`;
-        ctx.textAlign = "center";
-        ctx.textBaseline = "top";
-        ctx.fillStyle = "#e2e8f0";
-        ctx.fillText(
-          node.label.length > 24 ? node.label.slice(0, 22) + "…" : node.label,
-          node.x ?? 0,
-          (node.y ?? 0) + radius + 3
-        );
-      }
+      // Label — always visible, brighter on hover
+      const fontSize = Math.max(10 / globalScale, 2.5);
+      ctx.font = `400 ${fontSize}px Sora, system-ui, sans-serif`;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "top";
+      ctx.fillStyle = isHovered ? "#f8fafc" : "#e2e8f066";
+      const label =
+        node.label.length > 20 ? node.label.slice(0, 18) + "…" : node.label;
+      ctx.fillText(label, x, y + radius + 2);
     },
-    []
+    [hoveredNode]
   );
 
   // ─── Link renderer ───
-  const linkColor = useCallback((edge: GraphEdge) => {
-    const alpha = Math.round(0.15 + edge.strength * 0.4 * 255)
-      .toString(16)
-      .padStart(2, "0");
-    return `#94a3b8${alpha}`;
-  }, []);
+  const drawLink = useCallback(
+    (edge: GraphEdge, ctx: CanvasRenderingContext2D) => {
+      const src = typeof edge.source === "string" ? null : edge.source;
+      const tgt = typeof edge.target === "string" ? null : edge.target;
+      if (!src || !tgt) return;
 
-  const linkWidth = useCallback(
-    (edge: GraphEdge) => 0.5 + edge.strength * 2,
-    []
+      const srcId = edgeNodeId(edge.source);
+      const tgtId = edgeNodeId(edge.target);
+      const key = `${srcId}__${tgtId}`;
+      const isHighlighted = hoveredEdgeSet.has(key);
+
+      const srcColor = LAYER_COLORS[src.hallidayLayer] ?? "#64748b";
+      const alpha = isHighlighted ? 0.6 : 0.08 + edge.strength * 0.12;
+      const width = isHighlighted ? 1.5 : 0.4 + edge.strength * 0.8;
+
+      ctx.beginPath();
+      ctx.moveTo(src.x ?? 0, src.y ?? 0);
+      ctx.lineTo(tgt.x ?? 0, tgt.y ?? 0);
+      ctx.strokeStyle =
+        srcColor +
+        Math.round(alpha * 255)
+          .toString(16)
+          .padStart(2, "0");
+      ctx.lineWidth = width;
+      ctx.stroke();
+    },
+    [hoveredEdgeSet]
   );
 
-  // ─── Node click ───
   const handleNodeClick = useCallback((node: GraphNode) => {
     setSelectedNode(node);
   }, []);
 
-  // ─── Answer submit ───
+  const handleNodeHover = useCallback((node: GraphNode | null) => {
+    setHoveredNode(node);
+  }, []);
+
   const handleAnswer = useCallback(
     async (prompt: Prompt) => {
       const text = answerTexts[prompt.id]?.trim();
       if (!text) return;
-
       await answerMutation.mutateAsync({
         question: prompt.question,
         answer: text,
         targetLayer: prompt.targetLayer as any,
         targetNodeType: prompt.targetNodeType as any,
       });
-
       setAnswerTexts((prev) => ({ ...prev, [prompt.id]: "" }));
       setDismissedPrompts((prev) => new Set(prev).add(prompt.id));
       notifyMutation("mindMap.answer");
@@ -252,253 +278,273 @@ export default function MindMap() {
     return graphQuery.data.nodes.filter((n) => neighborIds.has(n.id));
   })();
 
-  // ─── Visible prompts ───
   const visiblePrompts = (promptsQuery.data?.prompts ?? []).filter(
     (p) => !dismissedPrompts.has(p.id)
   );
-
-  // ─── Overall progress ───
   const overallProgress = graphQuery.data?.overallProgress ?? 0;
   const thresholdLabel = getThresholdLabel(overallProgress);
+  const accentColor = selectedNode
+    ? LAYER_COLORS[selectedNode.hallidayLayer]
+    : "#3b82f6";
 
-  // ─── Loading ───
   if (graphQuery.isLoading) {
     return (
       <div className="min-h-screen bg-[#080b14] flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-blue-400" />
+        <Loader2 className="h-6 w-6 animate-spin text-slate-500" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#080b14] text-white flex flex-col overflow-hidden">
+    <div className="min-h-screen bg-[#080b14] text-white flex flex-col overflow-hidden font-sora">
       {/* ─── Header ─── */}
-      <header className="glass border-b border-white/5 px-6 py-3 flex items-center justify-between z-20 relative">
-        <div className="flex items-center gap-4">
-          <Button
-            variant="ghost"
-            size="sm"
+      <header className="flex items-center justify-between px-5 py-2.5 z-20 relative border-b border-white/[0.04]" style={{ background: "rgba(8,11,20,0.9)", backdropFilter: "blur(12px)" }}>
+        <div className="flex items-center gap-6">
+          <button
             onClick={() => setLocation("/")}
-            className="text-slate-400 hover:text-white hover:bg-white/10"
+            className="flex items-center gap-1.5 text-[11px] text-slate-500 hover:text-slate-300 tracking-wide uppercase transition-colors"
           >
-            <ArrowLeft className="h-4 w-4 mr-2" />
+            <ArrowLeft className="h-3 w-3" />
             Home
-          </Button>
-          <h1 className="text-xl font-semibold font-sora">Mind Map</h1>
+          </button>
+          <div className="w-px h-4 bg-white/[0.06]" />
+          <span className="text-[13px] font-medium text-white tracking-tight">
+            Mind Map
+          </span>
         </div>
 
         <div className="flex items-center gap-3">
-          <span className="text-sm text-slate-400 font-sora">
+          <span className="text-[10px] text-slate-500 uppercase tracking-[0.08em]">
             Identity Mapped
           </span>
-          <div className="w-32 h-2 bg-white/10 rounded-full overflow-hidden">
+          <div className="w-24 h-1 bg-white/[0.06] rounded-full overflow-hidden">
             <div
-              className="h-full bg-blue-500 rounded-full transition-all duration-500"
-              style={{ width: `${Math.round(overallProgress * 100)}%` }}
+              className="h-full rounded-full transition-all duration-700"
+              style={{ width: `${Math.round(overallProgress * 100)}%`, background: "#3b82f6" }}
             />
           </div>
-          <span className="text-sm font-semibold text-white font-sora">
+          <span className="text-[11px] font-medium text-slate-300 tabular-nums">
             {Math.round(overallProgress * 100)}%
           </span>
-          <Badge
-            className={`${THRESHOLD_COLORS[thresholdLabel] ?? "bg-slate-600"} text-white text-xs`}
-          >
+          <span className="text-[9px] text-slate-600 uppercase tracking-[0.1em]">
             {thresholdLabel}
-          </Badge>
+          </span>
         </div>
       </header>
 
       {/* ─── Main area ─── */}
       <div className="flex-1 relative" ref={containerRef}>
-        {/* Graph canvas */}
         {filteredData.nodes.length > 0 ? (
           <ForceGraph2D
             ref={graphRef}
             graphData={filteredData}
             nodeCanvasObject={drawNode}
             nodePointerAreaPaint={(node: GraphNode, color, ctx) => {
-              const r = 4 + node.depth * 16;
+              const r = 3 + node.depth * 14 + Math.max(node.edgeCount * 0.8, 0);
               ctx.fillStyle = color;
               ctx.beginPath();
-              ctx.arc(node.x ?? 0, node.y ?? 0, r + 2, 0, Math.PI * 2);
+              ctx.arc(node.x ?? 0, node.y ?? 0, r + 4, 0, Math.PI * 2);
               ctx.fill();
             }}
-            linkColor={linkColor}
-            linkWidth={linkWidth}
+            linkCanvasObject={drawLink}
             onNodeClick={handleNodeClick}
+            onNodeHover={handleNodeHover}
             backgroundColor="#080b14"
             width={containerSize.width}
             height={containerSize.height}
-            d3AlphaDecay={0.02}
-            d3VelocityDecay={0.3}
-            cooldownTicks={200}
+            d3AlphaDecay={0.015}
+            d3VelocityDecay={0.25}
+            cooldownTicks={300}
+            warmupTicks={50}
             nodeId="id"
             linkSource="source"
             linkTarget="target"
           />
         ) : (
-          <div className="flex flex-col items-center justify-center h-full text-center gap-4">
-            <Sparkles className="h-12 w-12 text-blue-400/50" />
-            <p className="text-slate-400 font-sora text-lg">
+          <div className="flex flex-col items-center justify-center h-full text-center gap-3">
+            <Sparkles className="h-10 w-10 text-slate-600" />
+            <p className="text-slate-400 text-[15px] font-medium">
               Your mind map is empty
             </p>
-            <p className="text-slate-500 text-sm max-w-md">
+            <p className="text-slate-600 text-[12px] max-w-xs leading-relaxed">
               Start capturing memories, values, and decisions to see your
               identity graph come alive.
             </p>
-            <Button
+            <button
               onClick={() => setLocation("/halliday")}
-              className="bg-blue-600 hover:bg-blue-700 mt-2"
+              className="mt-3 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-[12px] font-semibold text-white rounded-md transition-colors"
             >
               Start Halliday Interview
-            </Button>
+            </button>
           </div>
         )}
 
-        {/* ─── Prompt bubbles ─── */}
+        {/* ─── Prompt pills (collapsed) / expanded answer ─── */}
         {visiblePrompts.length > 0 && (
-          <div className="absolute bottom-24 left-6 flex flex-col gap-3 z-10 max-w-sm">
-            {visiblePrompts.slice(0, 3).map((prompt, i) => (
-              <div
-                key={prompt.id}
-                className="glass rounded-xl p-4 animate-float-in"
-                style={{ animationDelay: `${i * 0.15}s` }}
-              >
-                <div className="flex items-start justify-between gap-2 mb-2">
-                  <p className="font-serif italic text-sm text-slate-200 leading-relaxed">
-                    {prompt.question}
-                  </p>
+          <div className="absolute top-4 left-4 flex flex-col gap-2 z-10" style={{ maxWidth: expandedPrompt ? "340px" : "260px" }}>
+            {visiblePrompts.slice(0, 2).map((prompt) => {
+              const isExpanded = expandedPrompt === prompt.id;
+              const color = LAYER_COLORS[prompt.targetLayer] ?? "#64748b";
+
+              if (!isExpanded) {
+                return (
                   <button
-                    onClick={() =>
-                      setDismissedPrompts((s) => new Set(s).add(prompt.id))
-                    }
-                    className="text-slate-500 hover:text-slate-300 flex-shrink-0 mt-0.5"
+                    key={prompt.id}
+                    onClick={() => setExpandedPrompt(prompt.id)}
+                    className="flex items-center gap-2.5 px-3 py-2 rounded-md text-left transition-all animate-float-in hover:bg-white/[0.04]"
+                    style={{ background: "rgba(8,11,20,0.7)", backdropFilter: "blur(8px)", border: "1px solid rgba(255,255,255,0.05)" }}
                   >
-                    <X className="h-3.5 w-3.5" />
+                    <div
+                      className="w-1.5 h-1.5 rounded-full flex-shrink-0"
+                      style={{ backgroundColor: color }}
+                    />
+                    <span className="text-[12px] text-slate-400 truncate">
+                      {prompt.question}
+                    </span>
                   </button>
-                </div>
-                <div className="flex gap-2">
-                  <textarea
-                    value={answerTexts[prompt.id] ?? ""}
-                    onChange={(e) =>
-                      setAnswerTexts((prev) => ({
-                        ...prev,
-                        [prompt.id]: e.target.value,
-                      }))
-                    }
-                    placeholder="Answer here..."
-                    rows={2}
-                    className="flex-1 bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder:text-slate-500 resize-none focus:outline-none focus:ring-1 focus:ring-blue-500/50"
-                  />
-                  <Button
-                    size="sm"
-                    disabled={
-                      !answerTexts[prompt.id]?.trim() ||
-                      answerMutation.isPending
-                    }
-                    onClick={() => handleAnswer(prompt)}
-                    className="bg-blue-600 hover:bg-blue-700 self-end"
-                  >
-                    <Send className="h-3.5 w-3.5" />
-                  </Button>
-                </div>
-                <div className="flex gap-2 mt-2">
-                  <Badge
-                    variant="outline"
-                    className="text-xs border-white/10"
-                    style={{ color: LAYER_COLORS[prompt.targetLayer] }}
+                );
+              }
+
+              return (
+                <div
+                  key={prompt.id}
+                  className="rounded-md p-3.5 animate-float-in"
+                  style={{ background: "rgba(8,11,20,0.88)", backdropFilter: "blur(20px)", border: "1px solid rgba(255,255,255,0.06)" }}
+                >
+                  <div className="flex items-start justify-between gap-2 mb-2.5">
+                    <p className="text-[13px] text-[#e2e8f0] leading-snug">
+                      {prompt.question}
+                    </p>
+                    <button
+                      onClick={() => setExpandedPrompt(null)}
+                      className="text-slate-600 hover:text-slate-400 flex-shrink-0"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </div>
+                  <span
+                    className="text-[10px] uppercase tracking-[0.08em] mb-2.5 block"
+                    style={{ color }}
                   >
                     {LAYER_LABELS[prompt.targetLayer]}
-                  </Badge>
+                  </span>
+                  <div className="flex gap-2">
+                    <textarea
+                      value={answerTexts[prompt.id] ?? ""}
+                      onChange={(e) =>
+                        setAnswerTexts((prev) => ({
+                          ...prev,
+                          [prompt.id]: e.target.value,
+                        }))
+                      }
+                      placeholder="Answer..."
+                      rows={2}
+                      className="flex-1 bg-white/[0.03] border border-white/[0.06] rounded-md px-2.5 py-2 text-[12px] text-white placeholder:text-slate-600 resize-none focus:outline-none focus:border-white/[0.12]"
+                    />
+                    <button
+                      disabled={
+                        !answerTexts[prompt.id]?.trim() ||
+                        answerMutation.isPending
+                      }
+                      onClick={() => handleAnswer(prompt)}
+                      className="self-end p-2 bg-blue-600 hover:bg-blue-500 disabled:opacity-30 disabled:cursor-not-allowed rounded-md transition-colors"
+                    >
+                      <Send className="h-3 w-3 text-white" />
+                    </button>
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
 
         {/* ─── Node detail panel ─── */}
         <div
-          className={`absolute top-0 right-0 h-full w-96 glass border-l border-white/5 z-20 transition-transform duration-300 ${
+          className={`absolute top-0 right-0 h-full w-[360px] z-20 transition-transform duration-300 ease-out ${
             selectedNode ? "translate-x-0" : "translate-x-full"
           }`}
+          style={{
+            background: "rgba(8,11,20,0.85)",
+            backdropFilter: "blur(20px)",
+            borderLeft: "1px solid rgba(255,255,255,0.08)",
+            boxShadow: selectedNode
+              ? `inset 1px 0 0 ${accentColor}15, -8px 0 32px ${accentColor}08`
+              : "none",
+          }}
         >
           {selectedNode && (
-            <div className="p-6 h-full overflow-y-auto">
-              <div className="flex items-start justify-between mb-4">
-                <h2 className="text-lg font-semibold font-sora pr-4">
+            <div className="p-5 h-full overflow-y-auto">
+              <div className="flex items-start justify-between mb-3">
+                <h2 className="text-[20px] font-medium text-white pr-4 leading-tight">
                   {selectedNode.label}
                 </h2>
                 <button
                   onClick={() => setSelectedNode(null)}
-                  className="text-slate-400 hover:text-white flex-shrink-0"
+                  className="text-slate-600 hover:text-slate-400 flex-shrink-0 mt-1"
                 >
-                  <X className="h-5 w-5" />
+                  <X className="h-4 w-4" />
                 </button>
               </div>
 
-              <div className="flex gap-2 mb-4">
-                <Badge
-                  className="text-xs"
-                  style={{
-                    backgroundColor: LAYER_COLORS[selectedNode.hallidayLayer] + "33",
-                    color: LAYER_COLORS[selectedNode.hallidayLayer],
-                    borderColor: LAYER_COLORS[selectedNode.hallidayLayer] + "66",
-                  }}
+              {/* Layer + type labels */}
+              <div className="flex items-center gap-3 mb-4">
+                <span
+                  className="text-[10px] uppercase tracking-[0.08em] font-medium"
+                  style={{ color: LAYER_COLORS[selectedNode.hallidayLayer] }}
                 >
                   {LAYER_LABELS[selectedNode.hallidayLayer]}
-                </Badge>
-                <Badge variant="outline" className="text-xs text-slate-400 border-slate-600">
+                </span>
+                <span className="text-[10px] text-slate-600 uppercase tracking-[0.08em]">
                   {selectedNode.nodeType.replace(/_/g, " ")}
-                </Badge>
+                </span>
               </div>
 
-              <p className="font-serif text-slate-300 text-sm leading-relaxed mb-6">
+              {/* Content */}
+              <p className="text-[13px] text-slate-400 leading-relaxed mb-5">
                 {selectedNode.content.length > 500
                   ? selectedNode.content.slice(0, 500) + "…"
                   : selectedNode.content}
               </p>
 
-              {/* Depth indicator */}
-              <div className="mb-6">
-                <div className="flex justify-between text-xs text-slate-400 mb-1">
-                  <span>Understanding depth</span>
-                  <span>{Math.round(selectedNode.depth * 100)}%</span>
+              {/* Depth / connections — tabular metadata */}
+              <div className="mb-5 py-3 border-t border-b border-white/[0.04]">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-[11px] text-slate-600 tracking-wide">DEPTH</span>
+                  <span className="text-[11px] text-slate-400 tabular-nums">{Math.round(selectedNode.depth * 100)}%</span>
                 </div>
-                <div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden">
+                <div className="w-full h-[3px] bg-white/[0.04] rounded-full overflow-hidden mb-3">
                   <div
                     className="h-full rounded-full transition-all"
                     style={{
-                      width: `${Math.round(selectedNode.depth * 100)}%`,
-                      backgroundColor:
-                        LAYER_COLORS[selectedNode.hallidayLayer],
+                      width: `${Math.max(Math.round(selectedNode.depth * 100), 2)}%`,
+                      backgroundColor: LAYER_COLORS[selectedNode.hallidayLayer],
                     }}
                   />
                 </div>
-                <p className="text-xs text-slate-500 mt-1">
-                  {selectedNode.edgeCount} connection{selectedNode.edgeCount !== 1 ? "s" : ""}
-                </p>
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] text-slate-600 tracking-wide">CONNECTIONS</span>
+                  <span className="text-[11px] text-slate-400 tabular-nums">{selectedNode.edgeCount}</span>
+                </div>
               </div>
 
               {/* Connected nodes */}
               {connectedNodes.length > 0 && (
-                <div className="mb-6">
-                  <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
+                <div className="mb-5">
+                  <span className="text-[10px] text-slate-600 uppercase tracking-[0.08em] block mb-2">
                     Connected
-                  </h3>
-                  <div className="space-y-1">
+                  </span>
+                  <div className="space-y-0.5">
                     {connectedNodes.slice(0, 8).map((n) => (
                       <button
                         key={n.id}
                         onClick={() => setSelectedNode(n)}
-                        className="w-full text-left flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-white/5 transition-colors"
+                        className="w-full text-left flex items-center gap-2 px-2 py-1.5 rounded hover:bg-white/[0.03] transition-colors"
                       >
                         <div
-                          className="w-2 h-2 rounded-full flex-shrink-0"
-                          style={{
-                            backgroundColor: LAYER_COLORS[n.hallidayLayer],
-                          }}
+                          className="w-1.5 h-1.5 rounded-full flex-shrink-0"
+                          style={{ backgroundColor: LAYER_COLORS[n.hallidayLayer] }}
                         />
-                        <span className="text-sm text-slate-300 truncate">
+                        <span className="text-[12px] text-slate-400 truncate">
                           {n.label}
                         </span>
                       </button>
@@ -508,63 +554,65 @@ export default function MindMap() {
               )}
 
               {/* Deepen CTA */}
-              <Button
+              <button
                 onClick={() => {
                   const cat = LAYER_TO_CATEGORY[selectedNode.hallidayLayer];
-                  setLocation(
-                    `/halliday?topic=${selectedNode.id}&layer=${cat}`
-                  );
+                  setLocation(`/halliday?topic=${selectedNode.id}&layer=${cat}`);
                 }}
-                className="w-full bg-blue-600 hover:bg-blue-700"
+                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-500 text-[12px] font-semibold text-white rounded-md transition-colors"
               >
                 Deepen this memory
-                <ChevronRight className="h-4 w-4 ml-2" />
-              </Button>
+                <ChevronRight className="h-3.5 w-3.5" />
+              </button>
             </div>
           )}
         </div>
       </div>
 
       {/* ─── Layer filter bar ─── */}
-      <div className="glass border-t border-white/5 px-6 py-3 flex items-center gap-2 z-20 relative overflow-x-auto">
+      <div
+        className="flex items-center gap-1 px-5 py-2 z-20 relative overflow-x-auto border-t border-white/[0.04]"
+        style={{ background: "rgba(8,11,20,0.9)", backdropFilter: "blur(12px)" }}
+      >
         <button
           onClick={() => setActiveLayer(null)}
-          className={`px-3 py-1.5 rounded-lg text-xs font-semibold font-sora transition-colors ${
+          className={`px-2.5 py-1 rounded text-[10px] uppercase tracking-[0.08em] font-medium transition-colors ${
             activeLayer === null
-              ? "bg-white/10 text-white"
-              : "text-slate-500 hover:text-slate-300"
+              ? "text-white bg-white/[0.06]"
+              : "text-slate-600 hover:text-slate-400"
           }`}
         >
           All
         </button>
-        {(graphQuery.data?.layerStats ?? []).map((ls) => (
-          <button
-            key={ls.layer}
-            onClick={() =>
-              setActiveLayer(activeLayer === ls.layer ? null : ls.layer)
-            }
-            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-sora transition-colors ${
-              activeLayer === ls.layer
-                ? "bg-white/10 text-white"
-                : "text-slate-500 hover:text-slate-300"
-            }`}
-          >
-            <div
-              className="w-2 h-2 rounded-full"
-              style={{ backgroundColor: LAYER_COLORS[ls.layer] }}
-            />
-            <span className="font-semibold">
-              {LAYER_LABELS[ls.layer]}
-            </span>
-            <span className="text-slate-500">{ls.count}</span>
-            <span
-              className="text-slate-600"
-              style={{ color: LAYER_COLORS[ls.layer] + "aa" }}
+        {(graphQuery.data?.layerStats ?? []).map((ls) => {
+          const color = LAYER_COLORS[ls.layer];
+          const isActive = activeLayer === ls.layer;
+          return (
+            <button
+              key={ls.layer}
+              onClick={() =>
+                setActiveLayer(isActive ? null : ls.layer)
+              }
+              className={`flex items-center gap-2 px-2.5 py-1 rounded text-[10px] uppercase tracking-[0.08em] transition-colors ${
+                isActive
+                  ? "bg-white/[0.06]"
+                  : "hover:bg-white/[0.02]"
+              }`}
             >
-              {Math.round(ls.completion * 100)}%
-            </span>
-          </button>
-        ))}
+              <div
+                className="w-1.5 h-1.5 rounded-full"
+                style={{ backgroundColor: color }}
+              />
+              <span style={{ color: isActive ? color : "#475569" }} className="font-medium">
+                {LAYER_LABELS[ls.layer]}
+              </span>
+              <span className="text-slate-700 tabular-nums">{ls.count}</span>
+              <span className="tabular-nums" style={{ color: isActive ? color + "88" : "#334155" }}>
+                {Math.round(ls.completion * 100)}%
+              </span>
+            </button>
+          );
+        })}
       </div>
     </div>
   );

@@ -102,7 +102,10 @@ export default function MindMap() {
     () => new Set()
   );
   const [answerTexts, setAnswerTexts] = useState<Record<string, string>>({});
-  const [containerSize, setContainerSize] = useState({ width: 800, height: 600 });
+  const [containerSize, setContainerSize] = useState(() => ({
+    width: typeof window !== "undefined" ? window.innerWidth : 800,
+    height: typeof window !== "undefined" ? window.innerHeight - 80 : 600, // minus header+footer estimate
+  }));
   const containerRef = useRef<HTMLDivElement>(null);
 
   // ─── Queries ───
@@ -128,10 +131,15 @@ export default function MindMap() {
     const el = containerRef.current;
     if (!el) return;
     const update = () => {
-      console.log('Container element:', el.clientWidth, el.clientHeight, 'offset:', el.offsetWidth, el.offsetHeight, 'window:', window.innerWidth, window.innerHeight);
-      setContainerSize({ width: el.clientWidth, height: el.clientHeight });
+      const w = el.clientWidth;
+      const h = el.clientHeight;
+      // Only update if the element has non-zero dimensions (layout complete)
+      if (w > 0 && h > 0) {
+        setContainerSize({ width: w, height: h });
+      }
     };
-    update();
+    // Defer initial read so flex layout has settled
+    requestAnimationFrame(update);
     const observer = new ResizeObserver(update);
     observer.observe(el);
     return () => observer.disconnect();
@@ -329,7 +337,7 @@ export default function MindMap() {
   }
 
   return (
-    <div className="min-h-screen bg-[#080b14] text-white flex flex-col overflow-hidden font-sora">
+    <div className="h-screen bg-[#080b14] text-white flex flex-col overflow-hidden font-sora">
       {/* ─── Header ─── */}
       <header className="flex items-center justify-between px-5 py-2.5 z-20 relative border-b border-white/[0.04]" style={{ background: "rgba(8,11,20,0.9)", backdropFilter: "blur(12px)" }}>
         <div className="flex items-center gap-6">
@@ -366,8 +374,7 @@ export default function MindMap() {
       </header>
 
       {/* ─── Main area ─── */}
-      <div className="flex-1 relative" ref={containerRef}>
-        {console.log('ForceGraph dimensions:', containerSize.width, containerSize.height, 'window:', typeof window !== 'undefined' ? window.innerWidth : 0, typeof window !== 'undefined' ? window.innerHeight : 0)}
+      <div className="flex-1 relative w-full overflow-hidden" ref={containerRef}>
         {filteredData.nodes.length > 0 ? (
           <ForceGraph2D
             ref={graphRef}

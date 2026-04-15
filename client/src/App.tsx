@@ -4,7 +4,7 @@ import NotFound from "@/pages/NotFound";
 import { Route, Switch } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { AuthGuard } from "./components/AuthGuard";
-import { CompanionProvider, CompanionBubble } from "./companion";
+import { CompanionProvider, EtherAvatar } from "./companion";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import Home from "./pages/Home";
 import HallidayInterview from "./pages/HallidayInterview";
@@ -25,7 +25,7 @@ function Protected({ children }: { children: React.ReactNode }) {
     <AuthGuard>
       <CompanionProvider>
         {children}
-        <CompanionBubble />
+        <EtherAvatar />
       </CompanionProvider>
     </AuthGuard>
   );

@@ -10,6 +10,7 @@ import { getOrCreateProfile, updateProfile, createMemoryNode, getMemoryNodesByUs
 import { personaRouter } from "./routers/persona";
 import { interviewRouter } from "./routers/interview";
 import { mindMapRouter } from "./routers/mindMap";
+import { homeRouter } from "./routers/home";
 import { processContent } from "./graphPipeline";
 import { checkRateLimit } from "./rateLimit";
 import { TRPCError } from "@trpc/server";
@@ -352,6 +353,7 @@ export const appRouter = router({
   persona: personaRouter,
   interview: interviewRouter,
   mindMap: mindMapRouter,
+  home: homeRouter,
 });
 
 export type AppRouter = typeof appRouter;

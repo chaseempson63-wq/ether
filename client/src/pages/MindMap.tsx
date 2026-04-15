@@ -82,9 +82,10 @@ function edgeNodeId(endpoint: string | GraphNode): string {
 
 type Prompt = {
   id: string;
+  nodeId: string | null;
+  nodeLabel: string;
+  layer: string;
   question: string;
-  targetLayer: string;
-  targetNodeType: string;
 };
 
 // ─── Component ───
@@ -293,11 +294,19 @@ export default function MindMap() {
     async (prompt: Prompt) => {
       const text = answerTexts[prompt.id]?.trim();
       if (!text) return;
+      // Map layer to a sensible default node type
+      const layerToType: Record<string, string> = {
+        voice_and_language: "concept",
+        memory_and_life_events: "memory",
+        reasoning_and_decisions: "reasoning_pattern",
+        values_and_beliefs: "value",
+        emotional_patterns: "emotion",
+      };
       await answerMutation.mutateAsync({
         question: prompt.question,
         answer: text,
-        targetLayer: prompt.targetLayer as any,
-        targetNodeType: prompt.targetNodeType as any,
+        targetLayer: prompt.layer as any,
+        targetNodeType: (layerToType[prompt.layer] ?? "memory") as any,
       });
       setAnswerTexts((prev) => ({ ...prev, [prompt.id]: "" }));
       setDismissedPrompts((prev) => new Set(prev).add(prompt.id));
@@ -423,26 +432,27 @@ export default function MindMap() {
           </div>
         )}
 
-        {/* ─── Prompt pills (collapsed) / expanded answer ─── */}
+        {/* ─── Prompt pills — node-specific ─── */}
         {visiblePrompts.length > 0 && (
-          <div className="absolute top-4 left-4 flex flex-col gap-2 z-10" style={{ maxWidth: expandedPrompt ? "340px" : "260px" }}>
+          <div className="absolute top-4 left-4 flex flex-col gap-2 z-10" style={{ maxWidth: expandedPrompt ? "340px" : "280px" }}>
             {visiblePrompts.slice(0, 3).map((prompt) => {
               const isExpanded = expandedPrompt === prompt.id;
-              const color = LAYER_COLORS[prompt.targetLayer] ?? "#64748b";
+              const color = LAYER_COLORS[prompt.layer] ?? "#64748b";
 
               if (!isExpanded) {
                 return (
                   <button
                     key={prompt.id}
                     onClick={() => setExpandedPrompt(prompt.id)}
-                    className="flex items-center gap-2.5 px-3 py-2 rounded-md text-left transition-all animate-float-in hover:bg-white/[0.04]"
+                    className="flex flex-col gap-0.5 px-3 py-2 rounded-md text-left transition-all animate-float-in hover:bg-white/[0.04]"
                     style={{ background: "rgba(8,11,20,0.7)", backdropFilter: "blur(8px)", border: "1px solid rgba(255,255,255,0.05)" }}
                   >
-                    <div
-                      className="w-1.5 h-1.5 rounded-full flex-shrink-0"
-                      style={{ backgroundColor: color }}
-                    />
-                    <span className="text-[12px] text-slate-400 truncate">
+                    <span className="flex items-center gap-1.5">
+                      <span className="text-[9px] uppercase tracking-[0.08em] font-medium" style={{ color }}>{LAYER_LABELS[prompt.layer]}</span>
+                      <span className="text-[9px] text-slate-600">·</span>
+                      <span className="text-[12px] text-white truncate">&ldquo;{prompt.nodeLabel}&rdquo;</span>
+                    </span>
+                    <span className="text-[11px] text-[#94a3b8] truncate">
                       {prompt.question}
                     </span>
                   </button>
@@ -455,10 +465,12 @@ export default function MindMap() {
                   className="rounded-md p-3.5 animate-float-in"
                   style={{ background: "rgba(8,11,20,0.88)", backdropFilter: "blur(20px)", border: "1px solid rgba(255,255,255,0.06)" }}
                 >
-                  <div className="flex items-start justify-between gap-2 mb-2.5">
-                    <p className="text-[13px] text-[#e2e8f0] leading-snug">
-                      {prompt.question}
-                    </p>
+                  <div className="flex items-start justify-between gap-2 mb-1">
+                    <span className="flex items-center gap-1.5">
+                      <span className="text-[9px] uppercase tracking-[0.08em] font-medium" style={{ color }}>{LAYER_LABELS[prompt.layer]}</span>
+                      <span className="text-[9px] text-slate-600">·</span>
+                      <span className="text-[12px] text-white">&ldquo;{prompt.nodeLabel}&rdquo;</span>
+                    </span>
                     <button
                       onClick={() => setExpandedPrompt(null)}
                       className="text-slate-600 hover:text-slate-400 flex-shrink-0"
@@ -466,12 +478,9 @@ export default function MindMap() {
                       <X className="h-3 w-3" />
                     </button>
                   </div>
-                  <span
-                    className="text-[10px] uppercase tracking-[0.08em] mb-2.5 block"
-                    style={{ color }}
-                  >
-                    {LAYER_LABELS[prompt.targetLayer]}
-                  </span>
+                  <p className="text-[11px] text-[#94a3b8] leading-relaxed mb-3">
+                    {prompt.question}
+                  </p>
                   <div className="flex gap-2">
                     <textarea
                       value={answerTexts[prompt.id] ?? ""}

@@ -112,55 +112,70 @@ export const mindMapRouter = router({
   }),
 
   /**
-   * AI-generated gap-analysis prompts targeting thin areas of the identity graph.
+   * AI-generated prompts targeting specific shallow nodes in the identity graph.
    */
   prompts: protectedProcedure.query(async ({ ctx }) => {
-    const nodes = await getMemoryNodesByUserId(ctx.user.id, undefined, 500);
+    const [nodes, edges] = await Promise.all([
+      getMemoryNodesByUserId(ctx.user.id, undefined, 500),
+      getMemoryEdgesByUserId(ctx.user.id, 1000),
+    ]);
 
-    // Count per layer and per node type
-    const layerCounts = new Map<string, number>();
-    const typeCounts = new Map<string, number>();
-    for (const n of nodes) {
-      layerCounts.set(n.hallidayLayer, (layerCounts.get(n.hallidayLayer) ?? 0) + 1);
-      typeCounts.set(n.nodeType, (typeCounts.get(n.nodeType) ?? 0) + 1);
+    // Empty graph → return generic fallback prompts
+    if (nodes.length === 0) {
+      return {
+        prompts: [
+          { id: "prompt-0", nodeId: null, nodeLabel: "Identity", layer: "voice_and_language" as const, question: "What language do you think in when you're alone?" },
+          { id: "prompt-1", nodeId: null, nodeLabel: "Memory", layer: "memory_and_life_events" as const, question: "What moment split your life into before and after?" },
+          { id: "prompt-2", nodeId: null, nodeLabel: "Values", layer: "values_and_beliefs" as const, question: "What would you never compromise on?" },
+        ],
+      };
     }
 
-    const sparseLayers = HALLIDAY_LAYERS.filter(
-      (l) => (layerCounts.get(l) ?? 0) < 5
-    );
-    const missingTypes = NODE_TYPES.filter(
-      (t) => (typeCounts.get(t) ?? 0) === 0
-    );
+    // Compute edge counts per node
+    const edgeCounts = new Map<string, number>();
+    for (const e of edges) {
+      edgeCounts.set(e.sourceNodeId, (edgeCounts.get(e.sourceNodeId) ?? 0) + 1);
+      edgeCounts.set(e.targetNodeId, (edgeCounts.get(e.targetNodeId) ?? 0) + 1);
+    }
+    const maxEdges = Math.max(1, ...Array.from(edgeCounts.values()));
 
-    const layerSummary = HALLIDAY_LAYERS.map(
-      (l) => `${l}: ${layerCounts.get(l) ?? 0} nodes`
-    ).join(", ");
+    // Build node summaries sorted by shallowest first
+    const nodeSummaries = nodes.map((n) => {
+      const ec = edgeCounts.get(n.id) ?? 0;
+      const name = (n.metadata as Record<string, unknown>)?.name as string | undefined;
+      return {
+        id: n.id,
+        label: name ?? n.summary ?? n.content.slice(0, 60),
+        layer: n.hallidayLayer,
+        edgeCount: ec,
+        depth: ec / maxEdges,
+      };
+    }).sort((a, b) => a.depth - b.depth);
 
-    const typeSummary = NODE_TYPES.map(
-      (t) => `${t}: ${typeCounts.get(t) ?? 0}`
-    ).join(", ");
+    // Pick shallowest nodes from different layers for Venice context
+    const contextNodes = nodeSummaries.slice(0, 20);
 
     try {
       const result = await invokeLLM({
         messages: [
           {
             role: "system",
-            content: `You are a gap-analysis engine for a personal identity knowledge graph. Generate exactly 3 questions targeting the weakest areas of the user's graph.
+            content: `You are generating targeted questions to deepen a user's digital mind graph. You will receive their existing memory nodes with depth scores. For each question, you MUST reference a specific existing node by name and ask something that would add connections or depth to that node.
+
+Return JSON only, no preamble, no markdown backticks:
+{"prompts":[{"nodeId":"uuid","nodeLabel":"label","layer":"layer_enum","question":"12-20 words referencing the node specifically"}]}
 
 Rules:
-- Each question must be 8-12 words max. Direct and specific, not therapeutic or flowery.
-- Examples of good questions: "What lesson did only failure teach you?" / "Who do you call when everything breaks?" / "What skill are you most proud of?"
-- Return ONLY a JSON array of objects with: "question", "targetLayer" (one of [${HALLIDAY_LAYERS.join(", ")}]), "targetNodeType" (one of [${NODE_TYPES.join(", ")}])
-- Focus on sparse layers and missing node types.`,
+- Generate exactly 3 prompts targeting the 3 shallowest nodes from different layers.
+- Each question MUST reference the specific node by name. Never generic.
+- Bad: "What is your core value?" Good: "You mentioned faith but haven't said how it shaped your biggest decisions"
+- 12-20 words per question. Direct, not therapeutic.
+- nodeId and nodeLabel must match exactly from the input nodes.
+- layer must be one of: ${HALLIDAY_LAYERS.join(", ")}`,
           },
           {
             role: "user",
-            content: `Identity graph summary:
-Layers: ${layerSummary}
-Node types: ${typeSummary}
-Sparse layers: ${sparseLayers.length > 0 ? sparseLayers.join(", ") : "none"}
-Missing node types: ${missingTypes.length > 0 ? missingTypes.join(", ") : "none"}
-Total nodes: ${nodes.length}`,
+            content: JSON.stringify({ nodes: contextNodes }),
           },
         ],
       });
@@ -172,34 +187,35 @@ Total nodes: ${nodes.length}`,
           ? raw.filter((p): p is { type: "text"; text: string } => typeof p === "object" && p.type === "text").map((p) => p.text).join("")
           : "";
 
-      // Extract JSON array from response (may be wrapped in markdown code fence)
-      const jsonMatch = text.match(/\[[\s\S]*\]/);
-      if (!jsonMatch) {
-        return { prompts: [] };
-      }
+      const jsonStr = text.replace(/```json?\s*/g, "").replace(/```/g, "").trim();
+      const parsed = JSON.parse(jsonStr) as {
+        prompts: Array<{
+          nodeId: string;
+          nodeLabel: string;
+          layer: string;
+          question: string;
+        }>;
+      };
 
-      const parsed = JSON.parse(jsonMatch[0]) as Array<{
-        question: string;
-        targetLayer: string;
-        targetNodeType: string;
-      }>;
-
-      const prompts = parsed
+      // Validate: nodeId must exist, layer must be valid
+      const nodeIdSet = new Set(nodes.map((n) => n.id));
+      const prompts = (parsed.prompts ?? [])
         .filter(
           (p) =>
             typeof p.question === "string" &&
-            HALLIDAY_LAYERS.includes(p.targetLayer as typeof HALLIDAY_LAYERS[number]) &&
-            NODE_TYPES.includes(p.targetNodeType as typeof NODE_TYPES[number])
+            typeof p.nodeLabel === "string" &&
+            HALLIDAY_LAYERS.includes(p.layer as typeof HALLIDAY_LAYERS[number])
         )
         .slice(0, 3)
         .map((p, i) => ({
           id: `prompt-${i}`,
+          nodeId: nodeIdSet.has(p.nodeId) ? p.nodeId : null,
+          nodeLabel: p.nodeLabel,
+          layer: p.layer as typeof HALLIDAY_LAYERS[number],
           question: p.question,
-          targetLayer: p.targetLayer as typeof HALLIDAY_LAYERS[number],
-          targetNodeType: p.targetNodeType as typeof NODE_TYPES[number],
         }));
 
-      return { prompts };
+      return { prompts: prompts.length > 0 ? prompts : [] };
     } catch (err) {
       console.error("[mindMap.prompts] LLM call failed:", err);
       return { prompts: [] };

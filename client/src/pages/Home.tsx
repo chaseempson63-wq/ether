@@ -10,10 +10,12 @@ import {
   Calendar,
   Mic,
   Users,
+  Network,
   LogOut,
 } from "lucide-react";
 
 const navItems = [
+  { label: "Mind Map", description: "Explore your identity graph", href: "/mind-map", icon: Network },
   { label: "Dashboard", description: "View your memories, values, and decisions", href: "/dashboard", icon: LayoutDashboard },
   { label: "Halliday Interview", description: "Deep identity questions across 5 layers", href: "/halliday", icon: Brain },
   { label: "Persona Chat", description: "Talk to your digital mind", href: "/chat", icon: MessageCircle },

@@ -17,6 +17,7 @@ import QuickMemory from "./pages/QuickMemory";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Onboarding from "./pages/Onboarding";
+import MindMap from "./pages/MindMap";
 
 /** Wrap a component so it requires authentication + companion context */
 function Protected({ children }: { children: React.ReactNode }) {
@@ -47,6 +48,7 @@ function Router() {
       <Route path="/interview">{() => <Protected><InterviewMode /></Protected>}</Route>
       <Route path="/chat">{() => <Protected><PersonaChat /></Protected>}</Route>
       <Route path="/beneficiaries">{() => <Protected><BeneficiaryManagement /></Protected>}</Route>
+      <Route path="/mind-map">{() => <Protected><MindMap /></Protected>}</Route>
 
       <Route path="/404" component={NotFound} />
       <Route component={NotFound} />

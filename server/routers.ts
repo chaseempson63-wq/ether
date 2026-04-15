@@ -9,6 +9,7 @@ import { z } from "zod";
 import { getOrCreateProfile, updateProfile, createMemoryNode, getMemoryNodesByUserId, createMemoryEdge, getMemoryEdgesByUserId } from "./db";
 import { personaRouter } from "./routers/persona";
 import { interviewRouter } from "./routers/interview";
+import { mindMapRouter } from "./routers/mindMap";
 import { processContent } from "./graphPipeline";
 import { checkRateLimit } from "./rateLimit";
 import { TRPCError } from "@trpc/server";
@@ -350,6 +351,7 @@ export const appRouter = router({
 
   persona: personaRouter,
   interview: interviewRouter,
+  mindMap: mindMapRouter,
 });
 
 export type AppRouter = typeof appRouter;

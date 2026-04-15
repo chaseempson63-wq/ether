@@ -71,6 +71,24 @@
     "First beneficiary. That's a big step.",
     "Legacy access. This is what makes Ether different."
   ],
+  "MIND_MAP_FIRST": [
+    "This is your mind, visualized. The bigger the node, the deeper I know it.",
+    "First time seeing the map. Zoom in on anything that catches your eye.",
+    "Here's everything I know about you so far. The gaps are opportunities.",
+    "Your identity graph. Every answer makes it denser."
+  ],
+  "MIND_MAP_RETURN": [
+    "Back to the map. Noticed any new connections?",
+    "The graph evolves every time you add something. See what changed.",
+    "Looking for gaps? The thin areas are where I need more from you.",
+    "Your mind, growing. Check the edges — that's where insight hides."
+  ],
+  "MIND_MAP_GAP_ANSWERED": [
+    "That filled a gap. Watch the graph update.",
+    "New node, new connections. The map just got richer.",
+    "Good answer. That corner of your mind is getting clearer.",
+    "One more piece of the puzzle. The graph feels it."
+  ],
   "IDLE_LONG": [
     "Still here? Take your time.",
     "No rush. I'm not going anywhere.",

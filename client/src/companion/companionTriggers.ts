@@ -71,6 +71,8 @@ export function checkPageTrigger(
 
   if (path === "/dashboard") {
     trigger = isFirstVisit ? "DASHBOARD_FIRST_VISIT" : "DASHBOARD_RETURN";
+  } else if (path === "/mind-map") {
+    trigger = isFirstVisit ? "MIND_MAP_FIRST" : "MIND_MAP_RETURN";
   } else if (path === "/chat" && isFirstVisit) {
     trigger = "PERSONA_CHAT_FIRST";
   } else if (path === "/reflection" && isFirstVisit) {
@@ -120,6 +122,10 @@ export function checkMutationTrigger(
       if (sessionState.beneficiariesSaved === 1) {
         trigger = "BENEFICIARY_FIRST";
       }
+      break;
+    }
+    case "mindMap.answer": {
+      trigger = "MIND_MAP_GAP_ANSWERED";
       break;
     }
     case "persona.goodResult": {

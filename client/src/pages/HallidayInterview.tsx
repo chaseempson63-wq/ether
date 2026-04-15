@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -33,7 +33,14 @@ type ConversationPhase = "answering" | "loading_followup" | "following_up" | "sa
 export default function HallidayInterview() {
   const [, setLocation] = useLocation();
   const { notifyMutation } = useCompanion();
-  const [selectedCategory, setSelectedCategory] = useState<string>("reasoning_decisions");
+  // Read ?layer= query param from Mind Map deep-link
+  const layerParam = new URLSearchParams(window.location.search).get("layer");
+  const topicParam = new URLSearchParams(window.location.search).get("topic");
+  const initialCategory = CATEGORIES.some((c) => c.id === layerParam)
+    ? layerParam!
+    : "reasoning_decisions";
+
+  const [selectedCategory, setSelectedCategory] = useState<string>(initialCategory);
   const [response, setResponse] = useState("");
   const [followUpResponse, setFollowUpResponse] = useState("");
   const [followUpText, setFollowUpText] = useState("");
@@ -140,6 +147,15 @@ export default function HallidayInterview() {
           <ArrowLeft className="h-4 w-4 mr-2" />
           Home
         </Button>
+
+        {/* Mind Map deep-link banner */}
+        {topicParam && (
+          <div className="mb-4 bg-blue-900/30 border border-blue-800/50 rounded-lg px-4 py-3">
+            <p className="text-blue-300 text-sm">
+              <span className="font-semibold">Deepening from Mind Map</span> — answering questions to strengthen this area of your identity graph.
+            </p>
+          </div>
+        )}
 
         {/* Header */}
         <div className="mb-8 flex items-start justify-between">

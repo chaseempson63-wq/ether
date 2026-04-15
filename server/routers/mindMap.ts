@@ -8,6 +8,7 @@ import {
 import { invokeLLM } from "../_core/llm";
 import { processContent } from "../graphPipeline";
 import { checkRateLimit } from "../rateLimit";
+import { invalidateRecommendationCache } from "./home";
 import { TRPCError } from "@trpc/server";
 import {
   nodeTypeEnum,
@@ -240,6 +241,7 @@ Total nodes: ${nodes.length}`,
 
       // Fire-and-forget entity extraction + embedding
       processContent(ctx.user.id, input.answer, "reflection");
+      invalidateRecommendationCache(ctx.user.id);
 
       return { success: true as const, nodeId: node.id };
     }),

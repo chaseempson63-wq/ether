@@ -4,6 +4,7 @@ import { getDb, createMemoryNode, getMemoryNodesByUserId } from "../db";
 import { invokeLLM } from "../_core/llm";
 import { processContent } from "../graphPipeline";
 import { checkRateLimit } from "../rateLimit";
+import { invalidateRecommendationCache } from "./home";
 import { TRPCError } from "@trpc/server";
 import {
   interviewLevels,
@@ -314,6 +315,7 @@ export const interviewModeRouter = router({
 
       // Fire-and-forget entity extraction
       processContent(ctx.user.id, input.answer, "interview");
+      invalidateRecommendationCache(ctx.user.id);
 
       // Check if level is now complete
       const remaining = await db

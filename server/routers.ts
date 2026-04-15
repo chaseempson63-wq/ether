@@ -11,7 +11,7 @@ import { personaRouter } from "./routers/persona";
 import { interviewRouter } from "./routers/interview";
 import { interviewModeRouter } from "./routers/interviewMode";
 import { mindMapRouter } from "./routers/mindMap";
-import { homeRouter } from "./routers/home";
+import { homeRouter, invalidateRecommendationCache } from "./routers/home";
 import { processContent } from "./graphPipeline";
 import { checkRateLimit } from "./rateLimit";
 import { TRPCError } from "@trpc/server";
@@ -76,6 +76,7 @@ export const appRouter = router({
 
         // Background: extract entities, create edges, embed
         processContent(ctx.user.id, input.content, graphSourceType);
+        invalidateRecommendationCache(ctx.user.id);
 
         return node;
       }),
@@ -143,6 +144,7 @@ export const appRouter = router({
         });
 
         processContent(ctx.user.id, fullContent, 'reflection');
+        invalidateRecommendationCache(ctx.user.id);
 
         return node;
       }),
@@ -200,6 +202,7 @@ export const appRouter = router({
         });
 
         processContent(ctx.user.id, fullContent, 'reflection');
+        invalidateRecommendationCache(ctx.user.id);
 
         return node;
       }),
@@ -341,6 +344,7 @@ export const appRouter = router({
 
         // Fire-and-forget graph pipeline for text answers
         processContent(ctx.user.id, input.answer, 'interview');
+        invalidateRecommendationCache(ctx.user.id);
 
         return { success: true, nodeId: node.id };
       }),

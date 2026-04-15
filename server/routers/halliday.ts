@@ -5,6 +5,7 @@ import { processContent } from "../graphPipeline";
 import { hallidayQuestions, hallidayResponses, hallidayProgress } from "../../drizzle/schema";
 import { eq, and, desc, inArray, avg } from "drizzle-orm";
 import { invokeLLM } from "../_core/llm";
+import { invalidateRecommendationCache } from "./home";
 
 // Category weights as defined in the Halliday framework
 const CATEGORY_WEIGHTS: Record<string, number> = {
@@ -259,6 +260,7 @@ export const hallidayRouter = router({
         ? `[Halliday Interview — ${question[0].category.replace(/_/g, " ")}] ${question[0].text}\n\nAnswer: ${input.response}`
         : input.response;
       processContent(ctx.user.id, fullContent, 'halliday');
+      invalidateRecommendationCache(ctx.user.id);
 
       return { success: true, specificity };
     }),

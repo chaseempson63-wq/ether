@@ -249,8 +249,8 @@ function buildContextBlock(nodes: ScoredNode[]): string {
 
     const label = LAYER_LABELS[layer] ?? layer;
     const items = layerNodes.map((n) => {
-      const text = n.summary ?? n.content;
-      return `[MEMORY]: ${text.substring(0, 400)}`;
+      // Always use full content — summaries are too abstract and strip specific details
+      return `[MEMORY]: ${n.content.substring(0, 400)}`;
     });
 
     sections.push(`### ${label}\n${items.join("\n")}`);

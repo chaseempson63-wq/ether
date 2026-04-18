@@ -28,8 +28,13 @@ export const personaRouter = router({
           []
         );
 
-        // Background: extract entities from what the user shared in chat
-        processContent(ctx.user.id, input.message, 'chat');
+        // Only extract entities from statements, not questions.
+        // Questions create hollow nodes that pollute vector search.
+        const trimmed = input.message.trim();
+        const isQuestion = trimmed.endsWith("?") || trimmed.split(/\s+/).length < 30;
+        if (!isQuestion) {
+          processContent(ctx.user.id, input.message, 'chat');
+        }
 
         return {
           message: response.content,

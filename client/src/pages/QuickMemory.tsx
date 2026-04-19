@@ -51,7 +51,12 @@ export default function QuickMemory() {
 
   const utils = trpc.useUtils();
   const memoriesQuery = trpc.memory.list.useQuery();
-  const createMemory = trpc.memory.create.useMutation();
+  const createMemory = trpc.memory.create.useMutation({
+    onSuccess: () => {
+      utils.mindMap.graph.invalidate();
+      utils.mindMap.prompts.invalidate();
+    },
+  });
 
   const {
     isRecording: bigRecording,

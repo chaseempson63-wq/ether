@@ -57,10 +57,14 @@ export default function InterviewMode() {
     { enabled: activeLevel != null, staleTime: 10_000 }
   );
 
+  const utils = trpc.useUtils();
+  // answer creates memory_nodes — must invalidate Mind Map caches.
   const answerMutation = trpc.interviewMode.answer.useMutation({
     onSuccess: (data) => {
       setAnswerText("");
       notifyMutation("interviewMode.answer");
+      utils.mindMap.graph.invalidate();
+      utils.mindMap.prompts.invalidate();
 
       if (data.levelComplete) {
         notifyMutation("interviewMode.levelComplete");

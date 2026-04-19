@@ -101,9 +101,16 @@ export default function DailyReflection() {
   const [priority, setPriority] = useState("1");
 
   // tRPC mutations
-  const createMemoryMutation = trpc.memory.create.useMutation();
-  const createReasoningMutation = trpc.reasoning.create.useMutation();
-  const createValueMutation = trpc.values.create.useMutation();
+  const utils = trpc.useUtils();
+  // Any mutation that creates memory_nodes must invalidate Mind Map caches
+  // (graph + prompts) so fresh nodes appear without a page reload.
+  const invalidateMindMap = () => {
+    utils.mindMap.graph.invalidate();
+    utils.mindMap.prompts.invalidate();
+  };
+  const createMemoryMutation = trpc.memory.create.useMutation({ onSuccess: invalidateMindMap });
+  const createReasoningMutation = trpc.reasoning.create.useMutation({ onSuccess: invalidateMindMap });
+  const createValueMutation = trpc.values.create.useMutation({ onSuccess: invalidateMindMap });
 
   const handleMemorySubmit = async () => {
     if (!memoryContent.trim()) {

@@ -111,6 +111,21 @@ export default function MindMap() {
   const containerRef = useRef<HTMLDivElement>(null);
 
   // ─── Queries ───
+  // ─── INVALIDATION CONTRACT ───
+  // Graph is cached indefinitely to prevent simulation jitter (nodes resettling
+  // on every refetch would make the graph feel unstable). Do NOT relax these
+  // flags — they are load-bearing for UX stability.
+  //
+  // Any mutation elsewhere in the app that creates memory_nodes MUST call
+  // utils.mindMap.graph.invalidate() (and utils.mindMap.prompts.invalidate())
+  // in its onSuccess, otherwise new nodes won't appear until a hard reload.
+  //
+  // Current invalidation sites (keep this list in sync):
+  //   - QuickMemory.tsx       → trpc.memory.create
+  //   - DailyReflection.tsx   → trpc.memory.create / reasoning.create / values.create
+  //   - HallidayInterview.tsx → trpc.halliday.submitResponse
+  //   - InterviewMode.tsx     → trpc.interviewMode.answer
+  //   - MindMap.tsx           → trpc.mindMap.answer (same-page refetch, below)
   const graphQuery = trpc.mindMap.graph.useQuery(undefined, {
     staleTime: Infinity,
     refetchOnWindowFocus: false,

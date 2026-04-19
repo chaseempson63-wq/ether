@@ -63,8 +63,15 @@ export default function HallidayInterview() {
   const { data: categoryBreakdown, refetch: refetchBreakdown } =
     trpc.halliday.getCategoryBreakdown.useQuery();
 
+  const utils = trpc.useUtils();
   const generateFollowUpMutation = trpc.halliday.generateFollowUp.useMutation();
-  const submitResponseMutation = trpc.halliday.submitResponse.useMutation();
+  // submitResponse creates memory_nodes — must invalidate Mind Map caches.
+  const submitResponseMutation = trpc.halliday.submitResponse.useMutation({
+    onSuccess: () => {
+      utils.mindMap.graph.invalidate();
+      utils.mindMap.prompts.invalidate();
+    },
+  });
 
   const resetConversation = () => {
     setResponse("");

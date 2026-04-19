@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { useCompanion } from "@/companion";
+import { VoiceInput } from "@/components/VoiceInput";
 import {
   ArrowLeft,
   Loader2,
@@ -234,14 +235,23 @@ export default function InterviewMode() {
                 </div>
               ) : (
                 <div>
-                  <textarea
-                    value={answerText}
-                    onChange={(e) => setAnswerText(e.target.value)}
-                    placeholder="Type your answer..."
-                    rows={5}
-                    className="w-full bg-white/[0.03] border border-white/[0.06] rounded-lg px-4 py-3 text-[13px] text-white placeholder:text-slate-600 resize-none focus:outline-none focus:border-blue-500/30 transition-colors"
-                    autoFocus
-                  />
+                  <div className="relative">
+                    <textarea
+                      value={answerText}
+                      onChange={(e) => setAnswerText(e.target.value)}
+                      placeholder="Type or speak your answer..."
+                      rows={5}
+                      className="w-full bg-white/[0.03] border border-white/[0.06] rounded-lg px-4 py-3 pr-12 text-[13px] text-white placeholder:text-slate-600 resize-none focus:outline-none focus:border-blue-500/30 transition-colors"
+                      autoFocus
+                    />
+                    <VoiceInput
+                      className="absolute bottom-2 right-2"
+                      disabled={answerMutation.isPending}
+                      onTranscript={(text) =>
+                        setAnswerText((prev) => (prev ? prev + " " + text : text))
+                      }
+                    />
+                  </div>
                   <div className="flex justify-end mt-4">
                     <button
                       onClick={handleSubmit}

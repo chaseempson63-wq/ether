@@ -3,6 +3,7 @@ import { useLocation } from "wouter";
 import ForceGraph2D, { type ForceGraphMethods } from "react-force-graph-2d";
 import { trpc } from "@/lib/trpc";
 import { useCompanion } from "@/companion";
+import { VoiceInput } from "@/components/VoiceInput";
 import {
   ArrowLeft,
   Loader2,
@@ -482,18 +483,30 @@ export default function MindMap() {
                     {prompt.question}
                   </p>
                   <div className="flex gap-2">
-                    <textarea
-                      value={answerTexts[prompt.id] ?? ""}
-                      onChange={(e) =>
-                        setAnswerTexts((prev) => ({
-                          ...prev,
-                          [prompt.id]: e.target.value,
-                        }))
-                      }
-                      placeholder="Answer..."
-                      rows={2}
-                      className="flex-1 bg-white/[0.03] border border-white/[0.06] rounded-md px-2.5 py-2 text-[12px] text-white placeholder:text-slate-600 resize-none focus:outline-none focus:border-white/[0.12]"
-                    />
+                    <div className="relative flex-1">
+                      <textarea
+                        value={answerTexts[prompt.id] ?? ""}
+                        onChange={(e) =>
+                          setAnswerTexts((prev) => ({
+                            ...prev,
+                            [prompt.id]: e.target.value,
+                          }))
+                        }
+                        placeholder="Type or speak..."
+                        rows={2}
+                        className="w-full bg-white/[0.03] border border-white/[0.06] rounded-md px-2.5 py-2 pr-9 text-[12px] text-white placeholder:text-slate-600 resize-none focus:outline-none focus:border-white/[0.12]"
+                      />
+                      <VoiceInput
+                        className="absolute bottom-1.5 right-1.5"
+                        disabled={answerMutation.isPending}
+                        onTranscript={(text) =>
+                          setAnswerTexts((prev) => ({
+                            ...prev,
+                            [prompt.id]: prev[prompt.id] ? prev[prompt.id] + " " + text : text,
+                          }))
+                        }
+                      />
+                    </div>
                     <button
                       disabled={
                         !answerTexts[prompt.id]?.trim() ||

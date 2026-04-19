@@ -49,10 +49,12 @@ export function useVoiceRecognition({
 }): {
   isRecording: boolean;
   supported: boolean;
+  interimText: string;
   toggle: () => void;
 } {
   const [isRecording, setIsRecording] = useState(false);
   const [supported, setSupported] = useState(true);
+  const [interimText, setInterimText] = useState("");
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
 
   // Keep a ref to the latest callback so recognition handlers don't capture
@@ -82,20 +84,26 @@ export function useVoiceRecognition({
 
     const recognition = new Ctor();
     recognition.continuous = true;
-    recognition.interimResults = false;
+    recognition.interimResults = true;
     recognition.lang = navigator.language || "en-US";
 
     recognition.onresult = (event) => {
-      // Walk new results since resultIndex; only emit final ones.
-      let chunk = "";
+      // Walk new results since resultIndex; emit finals, accumulate interim for live display.
+      let finalChunk = "";
+      let interimChunk = "";
       for (let i = event.resultIndex; i < event.results.length; i++) {
         const result = event.results[i];
         if (result.isFinal) {
-          chunk += result[0].transcript;
+          finalChunk += result[0].transcript;
+        } else {
+          interimChunk += result[0].transcript;
         }
       }
-      const trimmed = chunk.trim();
-      if (trimmed.length > 0) onTranscriptRef.current(trimmed);
+      const trimmedFinal = finalChunk.trim();
+      if (trimmedFinal.length > 0) {
+        onTranscriptRef.current(trimmedFinal);
+      }
+      setInterimText(interimChunk);
     };
 
     recognition.onerror = (event) => {
@@ -111,6 +119,7 @@ export function useVoiceRecognition({
 
     recognition.onend = () => {
       setIsRecording(false);
+      setInterimText("");
       recognitionRef.current = null;
     };
 
@@ -137,7 +146,7 @@ export function useVoiceRecognition({
     else start();
   }, [isRecording, start, stop]);
 
-  return { isRecording, supported, toggle };
+  return { isRecording, supported, toggle, interimText };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -157,7 +166,7 @@ export function VoiceInput({
   className,
   label = "Voice input",
 }: VoiceInputProps) {
-  const { isRecording, supported, toggle } = useVoiceRecognition({
+  const { isRecording, supported, toggle, interimText } = useVoiceRecognition({
     onTranscript,
   });
 
@@ -170,6 +179,19 @@ export function VoiceInput({
 
   return (
     <div className={cn("relative inline-flex", className)}>
+      {isRecording && interimText && (
+        <span
+          className="absolute bottom-full right-0 mb-2 w-max max-w-xs px-2.5 py-1.5 rounded-md text-[11px] text-slate-300 italic pointer-events-none whitespace-normal leading-snug"
+          style={{
+            background: "rgba(8,11,20,0.92)",
+            backdropFilter: "blur(8px)",
+            border: "1px solid rgba(255,255,255,0.08)",
+          }}
+          aria-live="polite"
+        >
+          {interimText}
+        </span>
+      )}
       {isRecording && (
         <span
           className="absolute inset-0 rounded-md bg-red-500/40 animate-ping pointer-events-none"

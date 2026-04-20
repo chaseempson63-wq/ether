@@ -165,6 +165,14 @@ export default function InterviewMode() {
     setHasStartedInput(false);
   }, [activeLevel]);
 
+  // Reset per-question state every time the user advances to a new question.
+  // Each question gets its own animated placeholder; the "stays stopped once
+  // user types" behavior applies per-question, not per-level session.
+  useEffect(() => {
+    setAnswerText("");
+    setHasStartedInput(false);
+  }, [currentIndex]);
+
   // Typing placeholder — must run at top level (not inside conditional branch).
   // Compute pre-requisites here and feed the hook. When conditions aren't met
   // (no active level, no examples, user has input, etc.) we pass `paused: true`

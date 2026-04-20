@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useEffect } from "react";
+import { useState, useCallback, useMemo, useRef, useEffect } from "react";
 import { useLocation } from "wouter";
 import ForceGraph2D, { type ForceGraphMethods } from "react-force-graph-2d";
 import { trpc } from "@/lib/trpc";
@@ -216,12 +216,26 @@ export default function MindMap() {
 
   // ─── Filter graph data by active layer ───
   //
+  // CRITICAL: This MUST be memoized. react-force-graph-2d's inner
+  // CanvasForceGraph kapsule defines `graphData` with `triggerUpdate: true`
+  // (force-graph.mjs:290). Any new reference on `graphData` fires the
+  // library's `update()` function, which:
+  //   1. Sets simulation alpha to 1 (full reheat)
+  //   2. Runs `warmupTicks` (120) synchronous force ticks
+  //   3. Calls resetCountdown() so the engine runs another cooldownTicks
+  //
+  // Without memoization, every hover/click/prompt-expand re-render produces a
+  // new object reference here → library thinks the graph changed → full
+  // reheat → nodes visibly shift under the cursor. That was the
+  // "cursor-repulsion" and "zoom-drift" bug. Do NOT inline this back to an
+  // IIFE.
+  //
   // Nodes are sorted by priority ASCENDING (leaves first, anchors last) so the
   // canvas paints anchors on TOP of leaves in z-order. Label collision then
   // uses a cross-frame bbox cache (see labelBboxRef below) so lower-priority
   // leaf labels get suppressed when they'd overlap an anchor label, regardless
   // of paint order.
-  const filteredData = (() => {
+  const filteredData = useMemo(() => {
     if (!graphQuery.data) return { nodes: [], links: [] };
     const nodesRaw = activeLayer
       ? graphQuery.data.nodes.filter((n) => n.hallidayLayer === activeLayer)
@@ -239,7 +253,7 @@ export default function MindMap() {
     });
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     return { nodes, links } as any;
-  })();
+  }, [graphQuery.data, activeLayer]);
 
   // ─── Label collision tracking ───
   //
@@ -315,7 +329,12 @@ export default function MindMap() {
   // decays to zero and the engine stops. Same flow as Obsidian.
 
   // ─── Hovered node edge set ───
-  const hoveredEdgeSet = (() => {
+  //
+  // Memoized so drawLink's useCallback dep stays stable when hoveredNode is
+  // unchanged. A new Set ref each render would churn shadowGraph redraws
+  // (though not simulation reheats since linkCanvasObject is triggerUpdate:
+  // false). Cheap correctness win either way.
+  const hoveredEdgeSet = useMemo(() => {
     if (!hoveredNode || !graphQuery.data) return new Set<string>();
     const set = new Set<string>();
     for (const e of graphQuery.data.edges) {
@@ -326,11 +345,30 @@ export default function MindMap() {
       }
     }
     return set;
-  })();
+  }, [hoveredNode, graphQuery.data]);
 
   // Zoom level snapshot for nodePointerAreaPaint (not handed globalScale).
   // drawNode runs every frame and updates this ref; pointer events read it.
   const zoomRef = useRef(1);
+
+  // Stable reference — reads only refs, never needs recreation. Extracted from
+  // an inline arrow so ForceGraph2D's shadowGraph hit-paint doesn't rebuild
+  // on every render.
+  const paintPointerArea = useCallback(
+    (node: GraphNode, color: string, ctx: CanvasRenderingContext2D) => {
+      const scale = zoomRef.current || 1;
+      const isAnchor = ANCHOR_NODE_TYPES.has(node.nodeType);
+      const base = computeNodeRadius(node.edgeCount, node.nodeType);
+      const rScreen = isAnchor ? Math.max(9, base) : base;
+      // +4px screen-space padding for easier clicking
+      const r = (rScreen + 4) / scale;
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.arc(node.x ?? 0, node.y ?? 0, r, 0, Math.PI * 2);
+      ctx.fill();
+    },
+    []
+  );
 
   // ─── Node renderer ───
   //
@@ -501,7 +539,11 @@ export default function MindMap() {
   );
 
   // ─── Connected nodes for detail panel ───
-  const connectedNodes = (() => {
+  //
+  // Memoized — only recomputed when the selected node or graph data changes.
+  // Side-panel render cost is low but keeping references stable avoids
+  // downstream React.memo misses.
+  const connectedNodes = useMemo(() => {
     if (!selectedNode || !graphQuery.data) return [];
     const neighborIds = new Set<string>();
     for (const e of graphQuery.data.edges) {
@@ -511,7 +553,7 @@ export default function MindMap() {
       if (tgt === selectedNode.id) neighborIds.add(src);
     }
     return graphQuery.data.nodes.filter((n) => neighborIds.has(n.id));
-  })();
+  }, [selectedNode, graphQuery.data]);
 
   const visiblePrompts = (promptsQuery.data?.prompts ?? []).filter(
     (p) => !dismissedPrompts.has(p.id)
@@ -574,20 +616,7 @@ export default function MindMap() {
             ref={graphRef}
             graphData={filteredData}
             nodeCanvasObject={drawNode}
-            nodePointerAreaPaint={(node: GraphNode, color, ctx) => {
-              // Match drawNode's screen-space radius so hit-test stays
-              // aligned with the visible circle at every zoom level.
-              const scale = zoomRef.current || 1;
-              const isAnchor = ANCHOR_NODE_TYPES.has(node.nodeType);
-              const base = computeNodeRadius(node.edgeCount, node.nodeType);
-              const rScreen = isAnchor ? Math.max(9, base) : base;
-              // +4px screen-space padding for easier clicking
-              const r = (rScreen + 4) / scale;
-              ctx.fillStyle = color;
-              ctx.beginPath();
-              ctx.arc(node.x ?? 0, node.y ?? 0, r, 0, Math.PI * 2);
-              ctx.fill();
-            }}
+            nodePointerAreaPaint={paintPointerArea}
             linkCanvasObject={drawLink}
             onRenderFramePre={handleRenderFramePre}
             onNodeClick={handleNodeClick}

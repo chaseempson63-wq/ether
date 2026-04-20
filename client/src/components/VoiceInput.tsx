@@ -57,6 +57,12 @@ export function useVoiceRecognition({
   const [interimText, setInterimText] = useState("");
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
 
+  // Cumulative final transcript committed so far, across all onresult events
+  // in the current recognition session. Used to emit only the *new* suffix on
+  // each event — some browsers re-send previously-finalized results with
+  // resultIndex stuck at 0, which would otherwise duplicate ("I I always I always say...").
+  const committedFinalRef = useRef("");
+
   // Keep a ref to the latest callback so recognition handlers don't capture
   // a stale closure when the parent re-renders with a new function identity.
   const onTranscriptRef = useRef(onTranscript);
@@ -86,20 +92,32 @@ export function useVoiceRecognition({
     recognition.continuous = true;
     recognition.interimResults = true;
     recognition.lang = navigator.language || "en-US";
+    committedFinalRef.current = "";
 
     recognition.onresult = (event) => {
-      // Walk new results since resultIndex; emit finals, accumulate interim for live display.
-      let finalChunk = "";
+      // Walk the full results array (not just from resultIndex) and build the
+      // cumulative final transcript. Some browsers re-emit finalized results
+      // on every event with resultIndex=0, so trusting resultIndex alone causes
+      // the whole phrase to be appended repeatedly. Emit only the new suffix
+      // beyond what we've already committed this session.
+      let fullFinal = "";
       let interimChunk = "";
-      for (let i = event.resultIndex; i < event.results.length; i++) {
+      for (let i = 0; i < event.results.length; i++) {
         const result = event.results[i];
         if (result.isFinal) {
-          finalChunk += result[0].transcript;
+          fullFinal += result[0].transcript;
         } else {
           interimChunk += result[0].transcript;
         }
       }
-      const trimmedFinal = finalChunk.trim();
+
+      const committed = committedFinalRef.current;
+      const newFinal = fullFinal.startsWith(committed)
+        ? fullFinal.slice(committed.length)
+        : fullFinal;
+      committedFinalRef.current = fullFinal;
+
+      const trimmedFinal = newFinal.trim();
       if (trimmedFinal.length > 0) {
         onTranscriptRef.current(trimmedFinal);
       }

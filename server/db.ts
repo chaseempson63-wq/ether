@@ -226,7 +226,20 @@ export async function createMemoryNode(userId: number, data: {
     metadata: data.metadata ?? null,
   }).returning();
 
-  return result[0];
+  const node = result[0];
+
+  // Fire-and-forget label generation. Node creation returns immediately; the
+  // label shows up on next mind-map refresh (~1–2s later). Dynamic import so
+  // db.ts doesn't pull the LLM module at boot and stays fast / testable.
+  if (node) {
+    import("./nodeLabeler")
+      .then((m) => m.labelNodeAsync(node.id, data.summary || data.content))
+      .catch((err) => {
+        console.error("[createMemoryNode] label dispatch failed:", err);
+      });
+  }
+
+  return node;
 }
 
 export async function getMemoryNodesByUserId(
@@ -264,6 +277,7 @@ export async function updateMemoryNode(
     summary?: string | null;
     content?: string;
     confidence?: number;
+    label?: string | null;
   }
 ) {
   const db = await getDb();
@@ -275,6 +289,7 @@ export async function updateMemoryNode(
   if (data.summary !== undefined) set.summary = data.summary;
   if (data.content !== undefined) set.content = data.content;
   if (data.confidence !== undefined) set.confidence = data.confidence;
+  if (data.label !== undefined) set.label = data.label;
 
   if (Object.keys(set).length === 0) return;
 

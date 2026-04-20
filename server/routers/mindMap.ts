@@ -83,9 +83,12 @@ export const mindMapRouter = router({
       const ec = edgeCounts.get(n.id) ?? 0;
       const name =
         (n.metadata as Record<string, unknown>)?.name as string | undefined;
+      // Prefer the Venice-generated short concept label; fall back through
+      // legacy sources (metadata.name → summary → truncated content) for rows
+      // that haven't been labeled yet (pre-backfill or label generation failed).
       return {
         id: n.id,
-        label: name ?? n.summary ?? n.content.slice(0, 60),
+        label: n.label ?? name ?? n.summary ?? n.content.slice(0, 60),
         nodeType: n.nodeType,
         hallidayLayer: n.hallidayLayer,
         summary: n.summary ?? n.content.slice(0, 200),
@@ -145,7 +148,7 @@ export const mindMapRouter = router({
       const name = (n.metadata as Record<string, unknown>)?.name as string | undefined;
       return {
         id: n.id,
-        label: name ?? n.summary ?? n.content.slice(0, 60),
+        label: n.label ?? name ?? n.summary ?? n.content.slice(0, 60),
         layer: n.hallidayLayer,
         edgeCount: ec,
         depth: ec / maxEdges,

@@ -53,12 +53,36 @@ const ANCHOR_NODE_TYPES = new Set(["memory", "event"]);
 
 // Render-time label normalizer. Handles messy DB casing ("OPTIMISTIC mindset",
 // "booking A flight", "Weird-Caps") → "Optimistic mindset", "Booking a flight".
+// Also capitalizes standalone pronoun "i" → "I" (and contractions "i'm" → "I'm"
+// since JS regex treats apostrophe as a word boundary).
 function toSentenceCase(raw: string): string {
   if (!raw) return "";
   const trimmed = raw.trim();
   if (!trimmed) return "";
   const lower = trimmed.toLowerCase();
-  return lower.charAt(0).toUpperCase() + lower.slice(1);
+  const withPronoun = lower.replace(/\bi\b/g, "I");
+  return withPronoun.charAt(0).toUpperCase() + withPronoun.slice(1);
+}
+
+// Labels from Venice are ALL CAPS concept labels ("BROKE MY LEG", "FIRST JOB").
+// Legacy nodes may have mixed casing. Preserve ALL CAPS; sentence-case the rest.
+function renderNodeLabel(raw: string): string {
+  if (!raw) return "";
+  const trimmed = raw.trim();
+  if (!trimmed) return "";
+  const letters = trimmed.replace(/[^a-zA-Z]/g, "");
+  if (letters.length > 0 && letters === letters.toUpperCase()) {
+    return trimmed;
+  }
+  return toSentenceCase(trimmed);
+}
+
+// Light-touch fix for prose display (side-panel content): only capitalize
+// standalone "i" → "I" (and contractions like "i'm"). Preserves all other
+// casing so proper nouns, sentence starts, etc. are untouched.
+function fixPronounCasing(raw: string): string {
+  if (!raw) return "";
+  return raw.replace(/\bi\b/g, "I");
 }
 
 // Power-curve node sizing. Anchors visually dominate leaves; floor keeps tiny
@@ -237,12 +261,15 @@ export default function MindMap() {
 
   // ─── d3-force config ───
   //
-  // No custom forces — just slightly stronger repulsion than the default so
-  // bigger anchor nodes (up to 22px) have room to breathe. The library's
-  // built-in drag handler already sets alphaTarget(0.3) on drag start and
-  // resets to 0 on drag end, AND auto-unpins nodes that weren't pinned before
-  // the drag. So we do NOT pin anywhere — let the library's internals do the
-  // Obsidian-style settle.
+  // Tighter clustering than before — default center force + modest x/y pull
+  // toward origin pulls the graph into a cohesive mind shape instead of a
+  // scattered constellation. Shorter link distance (50 vs 80) + reduced
+  // repulsion (-160 vs -240) keeps the family groups closer to each other.
+  //
+  // The library's built-in drag handler already sets alphaTarget(0.3) on drag
+  // start and drops to 0 on drag end, AND auto-unpins nodes that weren't
+  // pinned before the drag. The hover-pin logic in handleNodeHover below
+  // layers on top of this.
   useEffect(() => {
     const fg = graphRef.current;
     if (!fg) return;
@@ -251,11 +278,15 @@ export default function MindMap() {
       n.fx = undefined;
       n.fy = undefined;
     });
-    fg.d3Force("center", null);
-    fg.d3Force("x", null);
-    fg.d3Force("y", null);
-    fg.d3Force("charge")?.strength(-240);
-    fg.d3Force("link")?.distance(80).strength(0.4);
+    // Keep the library's default center force active (don't null it).
+    fg.d3Force("charge")?.strength(-160);
+    fg.d3Force("link")?.distance(50).strength(0.55);
+    // Gentle origin pull — NOT a spring-home force, just enough to stop the
+    // graph from drifting into dead space when nodes are released.
+    const x = fg.d3Force("x") as any;
+    const y = fg.d3Force("y") as any;
+    if (x && typeof x.strength === "function") x.strength(0.06);
+    if (y && typeof y.strength === "function") y.strength(0.06);
     fg.d3ReheatSimulation();
 
     // Engine runs forever (cooldownTicks=Infinity), so onEngineStop never
@@ -292,12 +323,29 @@ export default function MindMap() {
     return set;
   })();
 
+  // Current zoom level (aka globalScale) stashed from drawNode each frame so
+  // nodePointerAreaPaint (which isn't handed globalScale) can use the same
+  // screen-space radius. drawNode runs every render tick; pointerAreaPaint
+  // runs on pointer events, so the ref is always fresh by the time it's read.
+  const zoomRef = useRef(1);
+
   // ─── Node renderer ───
+  //
+  // All screen-space sizing: radius and font divide by globalScale so nodes
+  // stay visually constant regardless of zoom (fix 2 — nodes stay meaningful
+  // at all zoom levels). Anchors have a floor on screen-pixel size so they're
+  // clearly visible even when zoomed far out.
   const drawNode = useCallback(
     (node: GraphNode, ctx: CanvasRenderingContext2D, globalScale: number) => {
+      zoomRef.current = globalScale;
       const color = LAYER_COLORS[node.hallidayLayer] ?? "#64748b";
       const isAnchor = ANCHOR_NODE_TYPES.has(node.nodeType);
-      const radius = computeNodeRadius(node.edgeCount, node.nodeType);
+      // canvas-space radius / globalScale = screen-space radius (constant).
+      // Anchors get a minimum 9px screen size so they never disappear.
+      const baseRadius = computeNodeRadius(node.edgeCount, node.nodeType);
+      const radius = isAnchor
+        ? Math.max(9, baseRadius) / globalScale
+        : baseRadius / globalScale;
       const priority = computeNodePriority(node.nodeType, node.edgeCount);
       const isHovered = hoveredNode?.id === node.id;
       const x = node.x ?? 0;
@@ -329,7 +377,9 @@ export default function MindMap() {
       ctx.textAlign = "center";
       ctx.textBaseline = "top";
 
-      const label = toSentenceCase(node.label);
+      // Prefer the Venice ALL CAPS label as-is; sentence-case legacy mixed
+      // data as a fallback.
+      const label = renderNodeLabel(node.label);
       const labelWidth = ctx.measureText(label).width;
       const labelHeight = fontSize * 1.15;
       const labelX = x - labelWidth / 2;
@@ -411,7 +461,29 @@ export default function MindMap() {
     setSelectedNode(node);
   }, []);
 
+  // Hover-pin: freeze the hovered node's position so cursor-proximity doesn't
+  // make it squirm out from under the pointer (classic click-chase glitch at
+  // high zoom). Unpin on hover-leave so physics resumes. Obsidian pattern.
+  //
+  // Interplay with drag: if the user drags a hover-pinned node, the library
+  // preserves its fx/fy (because it was already pinned pre-drag) and won't
+  // auto-unpin on release. When the cursor eventually leaves the node, our
+  // hover-leave unpins it and physics takes over — the drop still "settles"
+  // naturally, just gated on pointer-leave instead of mouse-release.
+  const previouslyHoveredRef = useRef<GraphNode | null>(null);
   const handleNodeHover = useCallback((node: GraphNode | null) => {
+    const prev = previouslyHoveredRef.current;
+    // Unpin the previously-hovered node when hover moves elsewhere or leaves.
+    if (prev && (!node || prev.id !== node.id)) {
+      (prev as any).fx = undefined;
+      (prev as any).fy = undefined;
+    }
+    // Pin the newly-hovered node at its current position.
+    if (node) {
+      (node as any).fx = node.x;
+      (node as any).fy = node.y;
+    }
+    previouslyHoveredRef.current = node;
     setHoveredNode(node);
   }, []);
 
@@ -519,10 +591,18 @@ export default function MindMap() {
             graphData={filteredData}
             nodeCanvasObject={drawNode}
             nodePointerAreaPaint={(node: GraphNode, color, ctx) => {
-              const r = computeNodeRadius(node.edgeCount, node.nodeType);
+              // Match drawNode's screen-space sizing so hit-test stays aligned
+              // with the visible circle at every zoom level (fixes the
+              // click-chase glitch when zoomed in).
+              const scale = zoomRef.current || 1;
+              const isAnchor = ANCHOR_NODE_TYPES.has(node.nodeType);
+              const base = computeNodeRadius(node.edgeCount, node.nodeType);
+              const rScreen = isAnchor ? Math.max(9, base) : base;
+              // +4px screen-space padding for easier clicking
+              const r = (rScreen + 4) / scale;
               ctx.fillStyle = color;
               ctx.beginPath();
-              ctx.arc(node.x ?? 0, node.y ?? 0, r + 4, 0, Math.PI * 2);
+              ctx.arc(node.x ?? 0, node.y ?? 0, r, 0, Math.PI * 2);
               ctx.fill();
             }}
             linkCanvasObject={drawLink}
@@ -584,7 +664,7 @@ export default function MindMap() {
                     <span className="flex items-center gap-1.5">
                       <span className="text-[9px] uppercase tracking-[0.08em] font-medium" style={{ color }}>{LAYER_LABELS[prompt.layer]}</span>
                       <span className="text-[9px] text-slate-600">·</span>
-                      <span className="text-[12px] text-white truncate">&ldquo;{toSentenceCase(prompt.nodeLabel)}&rdquo;</span>
+                      <span className="text-[12px] text-white truncate">&ldquo;{renderNodeLabel(prompt.nodeLabel)}&rdquo;</span>
                     </span>
                     <span className="text-[11px] text-[#94a3b8] truncate">
                       {prompt.question}
@@ -603,7 +683,7 @@ export default function MindMap() {
                     <span className="flex items-center gap-1.5">
                       <span className="text-[9px] uppercase tracking-[0.08em] font-medium" style={{ color }}>{LAYER_LABELS[prompt.layer]}</span>
                       <span className="text-[9px] text-slate-600">·</span>
-                      <span className="text-[12px] text-white">&ldquo;{toSentenceCase(prompt.nodeLabel)}&rdquo;</span>
+                      <span className="text-[12px] text-white">&ldquo;{renderNodeLabel(prompt.nodeLabel)}&rdquo;</span>
                     </span>
                     <button
                       onClick={() => setExpandedPrompt(null)}
@@ -674,8 +754,8 @@ export default function MindMap() {
           {selectedNode && (
             <div className="p-5 h-full overflow-y-auto">
               <div className="flex items-start justify-between mb-3">
-                <h2 className="text-[20px] font-medium text-white pr-4 leading-tight">
-                  {toSentenceCase(selectedNode.label)}
+                <h2 className="text-[20px] font-medium text-white pr-4 leading-tight tracking-wide">
+                  {renderNodeLabel(selectedNode.label)}
                 </h2>
                 <button
                   onClick={() => setSelectedNode(null)}
@@ -700,9 +780,11 @@ export default function MindMap() {
 
               {/* Content */}
               <p className="text-[13px] text-slate-400 leading-relaxed mb-5">
-                {selectedNode.content.length > 500
-                  ? selectedNode.content.slice(0, 500) + "…"
-                  : selectedNode.content}
+                {fixPronounCasing(
+                  selectedNode.content.length > 500
+                    ? selectedNode.content.slice(0, 500) + "…"
+                    : selectedNode.content
+                )}
               </p>
 
               {/* Depth / connections — tabular metadata */}
@@ -744,7 +826,7 @@ export default function MindMap() {
                           style={{ backgroundColor: LAYER_COLORS[n.hallidayLayer] }}
                         />
                         <span className="text-[12px] text-slate-400 truncate">
-                          {toSentenceCase(n.label)}
+                          {renderNodeLabel(n.label)}
                         </span>
                       </button>
                     ))}

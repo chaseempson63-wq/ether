@@ -6,7 +6,7 @@ import {
   createMemoryNode,
 } from "../db";
 import { invokeLLM } from "../_core/llm";
-import { processContent } from "../graphPipeline";
+import { processContent, processProbeResponse } from "../graphPipeline";
 import { checkRateLimit } from "../rateLimit";
 import { invalidateRecommendationCache } from "./home";
 import { TRPCError } from "@trpc/server";
@@ -223,7 +223,16 @@ Rules:
   }),
 
   /**
-   * Save an inline answer from a prompt bubble as a new memory node.
+   * Save an inline answer from a prompt bubble.
+   *
+   * Two modes:
+   * - **Probe enrichment** (sourceNodeId present): The prompt targeted a specific
+   *   existing node, so the answer enriches that node (appends content, re-embeds)
+   *   and any genuinely new entities extracted from the answer become child nodes
+   *   linked back via `elaborates_on` edges.
+   * - **Free creation** (no sourceNodeId): Fallback for generic prompts (e.g. the
+   *   bootstrap prompts shown on an empty graph). Creates a fresh memory node
+   *   from the answer and kicks off the usual extraction pipeline.
    */
   answer: protectedProcedure
     .input(
@@ -232,6 +241,7 @@ Rules:
         answer: z.string().min(1),
         targetLayer: z.enum(hallidayLayerEnum.enumValues),
         targetNodeType: z.enum(nodeTypeEnum.enumValues),
+        sourceNodeId: z.string().uuid().nullable().optional(),
       })
     )
     .mutation(async ({ ctx, input }) => {
@@ -243,6 +253,25 @@ Rules:
         });
       }
 
+      // Probe enrichment path — the prompt targeted an existing node.
+      if (input.sourceNodeId) {
+        const result = await processProbeResponse(
+          ctx.user.id,
+          input.sourceNodeId,
+          input.answer,
+          "reflection"
+        );
+        invalidateRecommendationCache(ctx.user.id);
+        return {
+          success: true as const,
+          mode: "enriched" as const,
+          sourceNodeId: input.sourceNodeId,
+          newChildNodeIds: result.newChildNodeIds,
+          nodeId: null,
+        };
+      }
+
+      // Free-creation path — no source node, so create a fresh reflection node.
       const node = await createMemoryNode(ctx.user.id, {
         nodeType: input.targetNodeType,
         hallidayLayer: input.targetLayer,
@@ -259,6 +288,12 @@ Rules:
       processContent(ctx.user.id, input.answer, "reflection");
       invalidateRecommendationCache(ctx.user.id);
 
-      return { success: true as const, nodeId: node.id };
+      return {
+        success: true as const,
+        mode: "created" as const,
+        sourceNodeId: null,
+        newChildNodeIds: [] as string[],
+        nodeId: node.id,
+      };
     }),
 });

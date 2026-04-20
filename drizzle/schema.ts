@@ -304,6 +304,9 @@ export const interviewQuestions = pgTable("interview_questions_v2", {
   layer: hallidayLayerEnum("layer").notNull(),
   orderIndex: integer("order_index").notNull(),
   answeredAt: timestamp("answered_at", { withTimezone: true }),
+  // Scaffolding (Phase 1): populated for L1 seeds, NULL for L2/L3 Venice-generated
+  helperText: text("helper_text"),
+  exampleAnswers: jsonb("example_answers").$type<string[]>(),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 }, (table) => [
   index("interview_questions_v2_user_level_idx").on(table.userId, table.level),

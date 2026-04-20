@@ -158,6 +158,10 @@ type VoiceInputProps = {
   className?: string;
   /** Tooltip / aria-label for the idle state. Defaults to "Voice input". */
   label?: string;
+  /** Fires whenever the user clicks the mic button (before recording starts/stops).
+   *  Used by consumers that want to react to user intent even before a transcript arrives —
+   *  e.g. stopping a typing-placeholder animation on first mic press. */
+  onToggle?: () => void;
 };
 
 export function VoiceInput({
@@ -165,10 +169,16 @@ export function VoiceInput({
   disabled,
   className,
   label = "Voice input",
+  onToggle,
 }: VoiceInputProps) {
   const { isRecording, supported, toggle, interimText } = useVoiceRecognition({
     onTranscript,
   });
+
+  const handleClick = () => {
+    onToggle?.();
+    toggle();
+  };
 
   const isDisabled = disabled || !supported;
   const tooltip = !supported
@@ -202,7 +212,7 @@ export function VoiceInput({
         type="button"
         size="icon"
         variant="ghost"
-        onClick={toggle}
+        onClick={handleClick}
         disabled={isDisabled}
         title={tooltip}
         aria-label={tooltip}

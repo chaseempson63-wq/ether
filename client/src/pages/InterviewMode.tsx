@@ -37,6 +37,68 @@ const STATUS_STYLES: Record<string, { bg: string; text: string; label: string }>
   completed: { bg: "rgba(16,185,129,0.08)", text: "#10b981", label: "COMPLETED" },
 };
 
+// ─── Typing placeholder animation ───
+// Cycles through examples: types → pauses 2s → deletes → advances.
+// Returns the current animated string. When `paused` is true, returns "" and
+// the effect stops (caller should fall back to a static placeholder).
+const TYPE_SPEED_MS = 40;
+const DELETE_SPEED_MS = 25;
+const PAUSE_AFTER_FULL_MS = 2000;
+
+function useTypingPlaceholder(examples: string[] | undefined, paused: boolean): string {
+  const [display, setDisplay] = useState("");
+
+  useEffect(() => {
+    if (paused || !examples || examples.length === 0) {
+      setDisplay("");
+      return;
+    }
+
+    let exampleIdx = 0;
+    let charIdx = 0;
+    let phase: "typing" | "pausing" | "deleting" = "typing";
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    let cancelled = false;
+
+    const tick = () => {
+      if (cancelled) return;
+      const current = examples[exampleIdx] ?? "";
+      if (phase === "typing") {
+        charIdx++;
+        setDisplay(current.slice(0, charIdx));
+        if (charIdx >= current.length) {
+          phase = "pausing";
+          timer = setTimeout(tick, PAUSE_AFTER_FULL_MS);
+        } else {
+          timer = setTimeout(tick, TYPE_SPEED_MS);
+        }
+      } else if (phase === "pausing") {
+        phase = "deleting";
+        timer = setTimeout(tick, DELETE_SPEED_MS);
+      } else {
+        charIdx--;
+        setDisplay(current.slice(0, Math.max(charIdx, 0)));
+        if (charIdx <= 0) {
+          exampleIdx = (exampleIdx + 1) % examples.length;
+          charIdx = 0;
+          phase = "typing";
+          timer = setTimeout(tick, TYPE_SPEED_MS);
+        } else {
+          timer = setTimeout(tick, DELETE_SPEED_MS);
+        }
+      }
+    };
+
+    timer = setTimeout(tick, TYPE_SPEED_MS);
+    return () => {
+      cancelled = true;
+      if (timer) clearTimeout(timer);
+    };
+  }, [examples, paused]);
+
+  return display;
+}
+
 // ─── Component ───
 
 export default function InterviewMode() {
@@ -47,6 +109,9 @@ export default function InterviewMode() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [answerText, setAnswerText] = useState("");
   const [celebrating, setCelebrating] = useState(false);
+  // Once true for a session, the typing-placeholder animation stays off forever
+  // (even if the user clears the field). Set on first keystroke OR first mic click.
+  const [hasStartedInput, setHasStartedInput] = useState(false);
 
   const statusQuery = trpc.interviewMode.status.useQuery(undefined, {
     staleTime: 10_000,
@@ -93,11 +158,28 @@ export default function InterviewMode() {
     },
   });
 
-  // Reset index when level changes
+  // Reset index + input-started flag when level changes (new session)
   useEffect(() => {
     setCurrentIndex(0);
     setAnswerText("");
+    setHasStartedInput(false);
   }, [activeLevel]);
+
+  // Typing placeholder — must run at top level (not inside conditional branch).
+  // Compute pre-requisites here and feed the hook. When conditions aren't met
+  // (no active level, no examples, user has input, etc.) we pass `paused: true`
+  // so the hook effectively no-ops.
+  const _activeQuestions = questionsQuery.data?.questions ?? [];
+  const _activeQ = _activeQuestions[currentIndex];
+  const _isReview = questionsQuery.data?.status === "completed";
+  const _examples = _activeQ?.exampleAnswers ?? [];
+  const _shouldAnimate =
+    activeLevel != null &&
+    !_isReview &&
+    !hasStartedInput &&
+    answerText === "" &&
+    _examples.length > 0;
+  const animatedPlaceholder = useTypingPlaceholder(_examples, !_shouldAnimate);
 
   // Auto-advance to first unanswered on questions load
   useEffect(() => {
@@ -152,6 +234,8 @@ export default function InterviewMode() {
     const isReview = questionsQuery.data?.status === "completed";
     const q = questions[currentIndex];
     const answered = questions.filter((q) => q.answer != null).length;
+    // Pull animation state from top-level hook (defined above — hooks rule).
+    const shouldAnimate = _shouldAnimate;
 
     if (questionsQuery.isLoading) {
       return (
@@ -218,9 +302,16 @@ export default function InterviewMode() {
               </span>
 
               {/* Question text */}
-              <h2 className="text-[22px] font-medium text-[#e2e8f0] leading-snug mb-8">
+              <h2 className="text-[22px] font-medium text-[#e2e8f0] leading-snug mb-3">
                 {q.question}
               </h2>
+
+              {/* Helper probe — only rendered if present (L2/L3 won't have one) */}
+              {q.helperText && (
+                <p className="text-[13px] text-slate-400 leading-relaxed mb-8">
+                  {q.helperText}
+                </p>
+              )}
 
               {isReview ? (
                 <div
@@ -242,8 +333,11 @@ export default function InterviewMode() {
                   <div className="relative">
                     <textarea
                       value={answerText}
-                      onChange={(e) => setAnswerText(e.target.value)}
-                      placeholder="Type or speak your answer..."
+                      onChange={(e) => {
+                        if (!hasStartedInput) setHasStartedInput(true);
+                        setAnswerText(e.target.value);
+                      }}
+                      placeholder={shouldAnimate ? animatedPlaceholder : "Type or speak your answer..."}
                       rows={5}
                       className="w-full bg-white/[0.03] border border-white/[0.06] rounded-lg px-4 py-3 pr-12 text-[13px] text-white placeholder:text-slate-600 resize-none focus:outline-none focus:border-blue-500/30 transition-colors"
                       autoFocus
@@ -251,6 +345,7 @@ export default function InterviewMode() {
                     <VoiceInput
                       className="absolute bottom-2 right-2"
                       disabled={answerMutation.isPending}
+                      onToggle={() => setHasStartedInput(true)}
                       onTranscript={(text) =>
                         setAnswerText((prev) => (prev ? prev + " " + text : text))
                       }

@@ -104,10 +104,20 @@ export function useVoiceRecognition({
       let interimChunk = "";
       for (let i = 0; i < event.results.length; i++) {
         const result = event.results[i];
+        const transcript = result[0].transcript;
         if (result.isFinal) {
-          fullFinal += result[0].transcript;
+          // Samsung/Android Chrome emits overlapping finals: each results[i]
+          // holds the cumulative phrase rather than a disjoint utterance. If
+          // the current transcript extends what we've accumulated, it's a
+          // rewrite — replace instead of append (otherwise each growth step
+          // gets concatenated onto its own prefix, creating "lastlast night").
+          if (fullFinal.length > 0 && transcript.startsWith(fullFinal)) {
+            fullFinal = transcript;
+          } else {
+            fullFinal += transcript;
+          }
         } else {
-          interimChunk += result[0].transcript;
+          interimChunk += transcript;
         }
       }
 

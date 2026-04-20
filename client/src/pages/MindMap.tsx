@@ -259,55 +259,49 @@ export default function MindMap() {
     ref.curr = [];
   }, []);
 
-  // ─── d3-force config ───
+  // ─── d3-force config (Obsidian parity) ───
   //
-  // Tighter clustering than before — default center force + modest x/y pull
-  // toward origin pulls the graph into a cohesive mind shape instead of a
-  // scattered constellation. Shorter link distance (50 vs 80) + reduced
-  // repulsion (-160 vs -240) keeps the family groups closer to each other.
+  // Obsidian's graph view lets the simulation stop at rest. Heavy warmup so
+  // the layout appears already settled on first render. Moderate repulsion
+  // and short links keep the graph cohesive. The library's default center +
+  // x/y forces handle the cohesion — no custom tweaks needed.
   //
-  // The library's built-in drag handler already sets alphaTarget(0.3) on drag
-  // start and drops to 0 on drag end, AND auto-unpins nodes that weren't
-  // pinned before the drag. The hover-pin logic in handleNodeHover below
-  // layers on top of this.
+  // Drag behavior is entirely native: the library reheats to alphaTarget=0.3
+  // on drag start, drops to 0 on release, and alpha decays naturally until
+  // the sim stops again. Same flow Obsidian uses.
   useEffect(() => {
     const fg = graphRef.current;
     if (!fg) return;
-    // Unpin all nodes so layout recalculates
+    // Unpin everything so layout recalculates from scratch on data change
     filteredData.nodes?.forEach((n: any) => {
       n.fx = undefined;
       n.fy = undefined;
     });
-    // Keep the library's default center force active (don't null it).
-    fg.d3Force("charge")?.strength(-160);
-    fg.d3Force("link")?.distance(50).strength(0.55);
-    // Gentle origin pull — NOT a spring-home force, just enough to stop the
-    // graph from drifting into dead space when nodes are released.
-    const x = fg.d3Force("x") as any;
-    const y = fg.d3Force("y") as any;
-    if (x && typeof x.strength === "function") x.strength(0.06);
-    if (y && typeof y.strength === "function") y.strength(0.06);
+    // Keep library defaults for center/x/y — those give Obsidian-like cohesion.
+    fg.d3Force("charge")?.strength(-180);
+    fg.d3Force("link")?.distance(40);
     fg.d3ReheatSimulation();
-
-    // Engine runs forever (cooldownTicks=Infinity), so onEngineStop never
-    // fires. Fit the view once after initial settle via setTimeout instead.
-    const fitTimer = setTimeout(() => {
-      fg.zoomToFit(600, 80);
-    }, 900);
-    return () => clearTimeout(fitTimer);
   }, [graphQuery.data, activeLayer]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Drag / drag-end: intentionally no-ops. The library:
-  //  - during drag: fixes the node via obj.fx/fy internally + alphaTarget(0.3)
-  //  - on release: clears obj.fx/fy if the node wasn't pinned before drag,
-  //    and drops alphaTarget back to 0 so the graph settles naturally.
-  // We used to pin on both, which froze the graph. Don't do that.
-  const handleNodeDrag = useCallback((_node: any) => {
-    // intentionally empty — library handles drag pinning + reheat at 0.3
+  // First-settle zoom-to-fit. Fires once when the engine naturally stops
+  // after initial layout. Subsequent drag-triggered stops don't re-fit (user
+  // has zoomed/panned intentionally by then).
+  const hasFitRef = useRef(false);
+  useEffect(() => {
+    hasFitRef.current = false;
+  }, [graphQuery.data, activeLayer]);
+  const handleEngineStop = useCallback(() => {
+    if (hasFitRef.current) return;
+    const fg = graphRef.current;
+    if (!fg) return;
+    hasFitRef.current = true;
+    fg.zoomToFit(400, 80);
   }, []);
-  const handleNodeDragEnd = useCallback((_node: any) => {
-    // intentionally empty — library auto-unpins + drains alphaTarget
-  }, []);
+
+  // Drag is handled entirely natively by the library: alphaTarget=0.3 on drag
+  // start, node follows cursor via fx/fy, on release alphaTarget drops to 0
+  // and the node auto-unpins (since it wasn't pinned pre-drag), then alpha
+  // decays to zero and the engine stops. Same flow as Obsidian.
 
   // ─── Hovered node edge set ───
   const hoveredEdgeSet = (() => {
@@ -323,29 +317,17 @@ export default function MindMap() {
     return set;
   })();
 
-  // Current zoom level (aka globalScale) stashed from drawNode each frame so
-  // nodePointerAreaPaint (which isn't handed globalScale) can use the same
-  // screen-space radius. drawNode runs every render tick; pointerAreaPaint
-  // runs on pointer events, so the ref is always fresh by the time it's read.
-  const zoomRef = useRef(1);
-
   // ─── Node renderer ───
   //
-  // All screen-space sizing: radius and font divide by globalScale so nodes
-  // stay visually constant regardless of zoom (fix 2 — nodes stay meaningful
-  // at all zoom levels). Anchors have a floor on screen-pixel size so they're
-  // clearly visible even when zoomed far out.
+  // Obsidian-style: nodes in canvas-space (scale with zoom), labels in
+  // screen-space (constant pixel size — always readable). The sqrt-curve
+  // hierarchy ensures anchors remain visually dominant over leaves at all
+  // zoom levels.
   const drawNode = useCallback(
     (node: GraphNode, ctx: CanvasRenderingContext2D, globalScale: number) => {
-      zoomRef.current = globalScale;
       const color = LAYER_COLORS[node.hallidayLayer] ?? "#64748b";
       const isAnchor = ANCHOR_NODE_TYPES.has(node.nodeType);
-      // canvas-space radius / globalScale = screen-space radius (constant).
-      // Anchors get a minimum 9px screen size so they never disappear.
-      const baseRadius = computeNodeRadius(node.edgeCount, node.nodeType);
-      const radius = isAnchor
-        ? Math.max(9, baseRadius) / globalScale
-        : baseRadius / globalScale;
+      const radius = computeNodeRadius(node.edgeCount, node.nodeType);
       const priority = computeNodePriority(node.nodeType, node.edgeCount);
       const isHovered = hoveredNode?.id === node.id;
       const x = node.x ?? 0;
@@ -461,29 +443,10 @@ export default function MindMap() {
     setSelectedNode(node);
   }, []);
 
-  // Hover-pin: freeze the hovered node's position so cursor-proximity doesn't
-  // make it squirm out from under the pointer (classic click-chase glitch at
-  // high zoom). Unpin on hover-leave so physics resumes. Obsidian pattern.
-  //
-  // Interplay with drag: if the user drags a hover-pinned node, the library
-  // preserves its fx/fy (because it was already pinned pre-drag) and won't
-  // auto-unpin on release. When the cursor eventually leaves the node, our
-  // hover-leave unpins it and physics takes over — the drop still "settles"
-  // naturally, just gated on pointer-leave instead of mouse-release.
-  const previouslyHoveredRef = useRef<GraphNode | null>(null);
+  // At rest the simulation is fully stopped (no alphaTarget perpetual drift),
+  // so nodes don't squirm away from the cursor. No hover-pin workaround
+  // needed — match Obsidian's "hover just highlights, doesn't move things".
   const handleNodeHover = useCallback((node: GraphNode | null) => {
-    const prev = previouslyHoveredRef.current;
-    // Unpin the previously-hovered node when hover moves elsewhere or leaves.
-    if (prev && (!node || prev.id !== node.id)) {
-      (prev as any).fx = undefined;
-      (prev as any).fy = undefined;
-    }
-    // Pin the newly-hovered node at its current position.
-    if (node) {
-      (node as any).fx = node.x;
-      (node as any).fy = node.y;
-    }
-    previouslyHoveredRef.current = node;
     setHoveredNode(node);
   }, []);
 
@@ -591,15 +554,9 @@ export default function MindMap() {
             graphData={filteredData}
             nodeCanvasObject={drawNode}
             nodePointerAreaPaint={(node: GraphNode, color, ctx) => {
-              // Match drawNode's screen-space sizing so hit-test stays aligned
-              // with the visible circle at every zoom level (fixes the
-              // click-chase glitch when zoomed in).
-              const scale = zoomRef.current || 1;
-              const isAnchor = ANCHOR_NODE_TYPES.has(node.nodeType);
-              const base = computeNodeRadius(node.edgeCount, node.nodeType);
-              const rScreen = isAnchor ? Math.max(9, base) : base;
-              // +4px screen-space padding for easier clicking
-              const r = (rScreen + 4) / scale;
+              // Canvas-space hit-test, matches the visible circle. +4px for
+              // easier clicking.
+              const r = computeNodeRadius(node.edgeCount, node.nodeType) + 4;
               ctx.fillStyle = color;
               ctx.beginPath();
               ctx.arc(node.x ?? 0, node.y ?? 0, r, 0, Math.PI * 2);
@@ -609,20 +566,16 @@ export default function MindMap() {
             onRenderFramePre={handleRenderFramePre}
             onNodeClick={handleNodeClick}
             onNodeHover={handleNodeHover}
-            onNodeDrag={handleNodeDrag}
-            onNodeDragEnd={handleNodeDragEnd}
+            onEngineStop={handleEngineStop}
             backgroundColor="#080b14"
             width={containerSize.width}
             height={containerSize.height}
-            // Engine never fully freezes — keeps the graph breathing. With
-            // alphaDecay=0.01 forces drain to near-zero in ~3–4s so CPU work
-            // is minimal at rest, but any interaction (drag, layer switch)
-            // immediately reheats via the library's built-in drag handler.
-            cooldownTicks={Infinity}
-            d3AlphaDecay={0.01}
-            d3AlphaMin={0}
-            d3VelocityDecay={0.32}
-            warmupTicks={30}
+            // Obsidian parity: simulation stops at rest. Heavy warmup pre-
+            // settles the layout invisibly so the graph appears already laid
+            // out on first render. Default alphaDecay/VelocityDecay/alphaMin
+            // — same defaults d3-force (and Obsidian) use.
+            warmupTicks={120}
+            cooldownTicks={300}
             nodeId="id"
             linkSource="source"
             linkTarget="target"

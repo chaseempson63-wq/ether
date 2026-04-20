@@ -341,10 +341,80 @@ export default function MindMap() {
     fg.zoom(naturalFit * ZOOM_IN_MULTIPLIER, 500);
   }, []);
 
-  // Drag is handled entirely natively by the library: alphaTarget=0.3 on drag
-  // start, node follows cursor via fx/fy, on release alphaTarget drops to 0
-  // and the node auto-unpins (since it wasn't pinned pre-drag), then alpha
-  // decays to zero and the engine stops. Same flow as Obsidian.
+  // ─── Drag-pin architecture ───
+  //
+  // Library default: during drag, alphaTarget=0.3 keeps the engine ticking
+  // continuously. ALL nodes can move under forces. Two consequences:
+  //   - Long drags drift the whole graph outward (charge dominates center
+  //     gravity over many ticks → "viewport zooming out" perception).
+  //   - On release, link springs + center gravity all snap together → whole
+  //     graph compresses ("snap-cluster").
+  //
+  // Architectural fix: pin all nodes EXCEPT the dragged node and its 1-hop
+  // neighbors when drag begins. Unpin on release. Net effect:
+  //   - Dragged node: cursor controls fx/fy (library handles it)
+  //   - 1-hop neighbors: free to respond elastically via link force (the
+  //     "tug" Obsidian gives you when you grab a node)
+  //   - All other nodes: physically cannot move during drag — geometric
+  //     impossibility, not a force-balance request
+  //
+  // Drift and snap reduce to local-only motion around the drag site.
+
+  // Adjacency index built once per data-set change. Maps nodeId → Set of
+  // 1-hop neighbor ids. Cheap (O(edges)) and memoized so the lookup during
+  // drag is O(1) per node.
+  const neighborMap = useMemo(() => {
+    const map = new Map<string, Set<string>>();
+    if (!graphQuery.data) return map;
+    for (const e of graphQuery.data.edges) {
+      const src = edgeNodeId(e.source);
+      const tgt = edgeNodeId(e.target);
+      if (!map.has(src)) map.set(src, new Set());
+      if (!map.has(tgt)) map.set(tgt, new Set());
+      map.get(src)!.add(tgt);
+      map.get(tgt)!.add(src);
+    }
+    return map;
+  }, [graphQuery.data]);
+
+  // Tracks which node IDs we pinned during the current drag, so handleNodeDragEnd
+  // unpins exactly those (not nodes that were pinned for other reasons).
+  const draggedPinSetRef = useRef<Set<string>>(new Set());
+
+  const handleNodeDrag = useCallback(
+    (node: any) => {
+      // Only act on first drag tick (set is empty between drags).
+      if (draggedPinSetRef.current.size > 0) return;
+      const keepFreeIds = new Set<string>([node.id]);
+      const neighbors = neighborMap.get(node.id);
+      if (neighbors) neighbors.forEach((n) => keepFreeIds.add(n));
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      for (const n of filteredData.nodes as any[]) {
+        if (!keepFreeIds.has(n.id)) {
+          n.fx = n.x;
+          n.fy = n.y;
+          draggedPinSetRef.current.add(n.id);
+        }
+      }
+    },
+    [filteredData, neighborMap]
+  );
+
+  const handleNodeDragEnd = useCallback(
+    (_node: any) => {
+      const pinned = draggedPinSetRef.current;
+      if (pinned.size === 0) return;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      for (const n of filteredData.nodes as any[]) {
+        if (pinned.has(n.id)) {
+          n.fx = undefined;
+          n.fy = undefined;
+        }
+      }
+      pinned.clear();
+    },
+    [filteredData]
+  );
 
   // ─── Hovered node edge set ───
   //
@@ -643,6 +713,8 @@ export default function MindMap() {
             onRenderFramePre={handleRenderFramePre}
             onNodeClick={handleNodeClick}
             onNodeHover={handleNodeHover}
+            onNodeDrag={handleNodeDrag}
+            onNodeDragEnd={handleNodeDragEnd}
             onEngineStop={handleEngineStop}
             backgroundColor="#080b14"
             width={containerSize.width}

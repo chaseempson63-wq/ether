@@ -111,11 +111,26 @@ export function useVoiceRecognition({
         }
       }
 
+      // Dedup against two Android/Samsung Chrome quirks:
+      //   1. "Flicker" events where previously-final results briefly reappear
+      //      as interim (fullFinal=""). Must not reset committed — otherwise
+      //      the next growth re-emits the entire phrase.
+      //   2. "Revisions" where the recognizer retroactively rewrites an earlier
+      //      final (e.g. "last night" → "the last night"). Since we've already
+      //      emitted the older version, emitting the revised text duplicates.
+      //      Silently advance the baseline instead so subsequent growth is
+      //      relative to the new text (accepts minor word loss over dup noise).
       const committed = committedFinalRef.current;
-      const newFinal = fullFinal.startsWith(committed)
-        ? fullFinal.slice(committed.length)
-        : fullFinal;
-      committedFinalRef.current = fullFinal;
+      let newFinal = "";
+      if (fullFinal.length > committed.length) {
+        if (fullFinal.startsWith(committed)) {
+          // Clean monotonic growth — emit the suffix.
+          newFinal = fullFinal.slice(committed.length);
+        }
+        // else: revised (diverged but longer). Don't emit, just rebaseline.
+        committedFinalRef.current = fullFinal;
+      }
+      // else: shorter or equal to committed → flicker/repeat → ignore entirely.
 
       const trimmedFinal = newFinal.trim();
       if (trimmedFinal.length > 0) {

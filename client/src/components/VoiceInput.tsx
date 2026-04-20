@@ -63,6 +63,11 @@ export function useVoiceRecognition({
   // resultIndex stuck at 0, which would otherwise duplicate ("I I always I always say...").
   const committedFinalRef = useRef("");
 
+  // Tracks whether the current stop was user-initiated. Android Chrome ignores
+  // continuous=true and fires onend on short silence — we auto-restart unless
+  // the user explicitly tapped stop.
+  const userStoppedRef = useRef(false);
+
   // Keep a ref to the latest callback so recognition handlers don't capture
   // a stale closure when the parent re-renders with a new function identity.
   const onTranscriptRef = useRef(onTranscript);
@@ -73,6 +78,7 @@ export function useVoiceRecognition({
   useEffect(() => {
     setSupported(getRecognitionCtor() !== null);
     return () => {
+      userStoppedRef.current = true;
       try {
         recognitionRef.current?.stop();
       } catch {
@@ -88,13 +94,10 @@ export function useVoiceRecognition({
       return;
     }
 
-    const recognition = new Ctor();
-    recognition.continuous = true;
-    recognition.interimResults = true;
-    recognition.lang = navigator.language || "en-US";
+    userStoppedRef.current = false;
     committedFinalRef.current = "";
 
-    recognition.onresult = (event) => {
+    const handleResult = (event: SpeechRecognitionEventLike) => {
       // Walk the full results array (not just from resultIndex) and build the
       // cumulative final transcript. Some browsers re-emit finalized results
       // on every event with resultIndex=0, so trusting resultIndex alone causes
@@ -149,9 +152,10 @@ export function useVoiceRecognition({
       setInterimText(interimChunk);
     };
 
-    recognition.onerror = (event) => {
+    const handleError = (event: { error: string }) => {
       if (event.error === "not-allowed") {
         toast.error("Microphone permission denied.");
+        userStoppedRef.current = true;
       } else if (
         event.error !== "no-speech" &&
         event.error !== "aborted"
@@ -160,13 +164,41 @@ export function useVoiceRecognition({
       }
     };
 
-    recognition.onend = () => {
-      setIsRecording(false);
-      setInterimText("");
-      recognitionRef.current = null;
+    const createRecognizer = (): SpeechRecognitionLike => {
+      const rec = new Ctor();
+      rec.continuous = true;
+      rec.interimResults = true;
+      rec.lang = navigator.language || "en-US";
+      rec.onresult = handleResult;
+      rec.onerror = handleError;
+      rec.onend = () => {
+        if (userStoppedRef.current) {
+          setIsRecording(false);
+          setInterimText("");
+          recognitionRef.current = null;
+          return;
+        }
+        // Android Chrome ignores continuous=true and fires onend on silence.
+        // Auto-restart with a fresh recognizer so recording survives pauses.
+        // Reset committedFinalRef — the new session has a fresh results array,
+        // and any committed text is already in the textarea via prior emits.
+        committedFinalRef.current = "";
+        try {
+          const next = createRecognizer();
+          next.start();
+          recognitionRef.current = next;
+        } catch (err) {
+          console.error("Failed to auto-restart speech recognition", err);
+          setIsRecording(false);
+          setInterimText("");
+          recognitionRef.current = null;
+        }
+      };
+      return rec;
     };
 
     try {
+      const recognition = createRecognizer();
       recognition.start();
       recognitionRef.current = recognition;
       setIsRecording(true);
@@ -177,6 +209,7 @@ export function useVoiceRecognition({
   }, []);
 
   const stop = useCallback(() => {
+    userStoppedRef.current = true;
     try {
       recognitionRef.current?.stop();
     } catch {

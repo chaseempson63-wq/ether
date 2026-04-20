@@ -242,6 +242,37 @@ export async function createMemoryNode(userId: number, data: {
   return node;
 }
 
+export async function deleteMemoryNode(userId: number, nodeId: string): Promise<boolean> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  const [node] = await db
+    .select({ id: memoryNodes.id })
+    .from(memoryNodes)
+    .where(and(eq(memoryNodes.id, nodeId), eq(memoryNodes.userId, userId)))
+    .limit(1);
+
+  if (!node) return false;
+
+  await db
+    .delete(memoryEdges)
+    .where(
+      and(
+        eq(memoryEdges.userId, userId),
+        or(
+          eq(memoryEdges.sourceNodeId, nodeId),
+          eq(memoryEdges.targetNodeId, nodeId),
+        ),
+      ),
+    );
+
+  await db
+    .delete(memoryNodes)
+    .where(and(eq(memoryNodes.id, nodeId), eq(memoryNodes.userId, userId)));
+
+  return true;
+}
+
 export async function getMemoryNodesByUserId(
   userId: number,
   filters?: {

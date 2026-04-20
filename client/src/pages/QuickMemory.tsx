@@ -8,6 +8,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   ArrowLeft,
   Mic,
+  Trash2,
   Square,
   Search,
   Save,
@@ -18,11 +19,21 @@ import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
 import { VoiceInput, useVoiceRecognition } from "@/components/VoiceInput";
 import { useCompanion } from "@/companion";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 const QUICK_TAG = "quick";
 
 type MemoryRow = {
-  id: number;
+  id: string;
   content: string;
   tags: string[] | null | unknown;
   createdAt: Date | string;
@@ -48,6 +59,7 @@ export default function QuickMemory() {
   const [transcript, setTranscript] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [isSaving, setIsSaving] = useState(false);
+  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
 
   const utils = trpc.useUtils();
   const memoriesQuery = trpc.memory.list.useQuery();
@@ -55,6 +67,17 @@ export default function QuickMemory() {
     onSuccess: () => {
       utils.mindMap.graph.invalidate();
       utils.mindMap.prompts.invalidate();
+    },
+  });
+  const deleteMemory = trpc.memory.delete.useMutation({
+    onSuccess: async () => {
+      await utils.memory.list.invalidate();
+      utils.mindMap.graph.invalidate();
+      utils.mindMap.prompts.invalidate();
+      toast.success("Memory deleted");
+    },
+    onError: (err) => {
+      toast.error(err.message || "Failed to delete memory");
     },
   });
 
@@ -250,12 +273,23 @@ export default function QuickMemory() {
               filteredMemories.map((m) => (
                 <div
                   key={m.id}
-                  className="bg-slate-800/60 border border-slate-700/60 rounded-lg p-3"
+                  className="group bg-slate-800/60 border border-slate-700/60 rounded-lg p-3 relative"
                 >
-                  <div className="text-xs text-slate-500 mb-1">
-                    {formatDistanceToNow(new Date(m.createdAt as string), {
-                      addSuffix: true,
-                    })}
+                  <div className="flex items-start justify-between gap-2 mb-1">
+                    <div className="text-xs text-slate-500">
+                      {formatDistanceToNow(new Date(m.createdAt as string), {
+                        addSuffix: true,
+                      })}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setDeleteTargetId(m.id)}
+                      className="text-slate-500 hover:text-red-400 transition-colors p-1 -m-1 opacity-60 group-hover:opacity-100"
+                      aria-label="Delete memory"
+                      title="Delete memory"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
                   </div>
                   <p className="text-sm text-slate-200 line-clamp-3 whitespace-pre-wrap">
                     {m.content}
@@ -266,6 +300,42 @@ export default function QuickMemory() {
           </div>
         </ScrollArea>
       </div>
+
+      <AlertDialog
+        open={deleteTargetId !== null}
+        onOpenChange={(open) => { if (!open) setDeleteTargetId(null); }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this memory?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will be deleted forever. It will also be removed from your
+              mind map and any connected reasoning. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleteMemory.isPending}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={async (e) => {
+                e.preventDefault();
+                if (!deleteTargetId) return;
+                try {
+                  await deleteMemory.mutateAsync({ id: deleteTargetId });
+                  setDeleteTargetId(null);
+                } catch {
+                  /* toast fires via onError */
+                }
+              }}
+              disabled={deleteMemory.isPending}
+              className="bg-red-600 hover:bg-red-500 text-white"
+            >
+              {deleteMemory.isPending ? "Deleting…" : "Delete forever"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

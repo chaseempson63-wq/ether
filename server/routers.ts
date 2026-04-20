@@ -6,7 +6,7 @@ import { conversationRouter } from "./routers/conversations";
 import { beneficiaryRouter } from "./routers/beneficiary";
 import { publicProcedure, protectedProcedure, router } from "./_core/trpc";
 import { z } from "zod";
-import { getOrCreateProfile, updateProfile, createMemoryNode, getMemoryNodesByUserId, createMemoryEdge, getMemoryEdgesByUserId } from "./db";
+import { getOrCreateProfile, updateProfile, createMemoryNode, getMemoryNodesByUserId, createMemoryEdge, getMemoryEdgesByUserId, deleteMemoryNode } from "./db";
 import { personaRouter } from "./routers/persona";
 import { interviewRouter } from "./routers/interview";
 import { interviewModeRouter } from "./routers/interviewMode";
@@ -106,6 +106,17 @@ export const appRouter = router({
         };
       });
     }),
+
+    delete: protectedProcedure
+      .input(z.object({ id: z.string().uuid() }))
+      .mutation(async ({ ctx, input }) => {
+        const deleted = await deleteMemoryNode(ctx.user.id, input.id);
+        if (!deleted) {
+          throw new TRPCError({ code: 'NOT_FOUND', message: 'Memory not found' });
+        }
+        invalidateRecommendationCache(ctx.user.id);
+        return { success: true };
+      }),
   }),
 
   reasoning: router({

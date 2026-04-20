@@ -108,6 +108,7 @@ export default function QuickMemory() {
 
   const handleSave = async () => {
     if (!transcript.trim() || isSaving) return;
+    if (bigRecording) bigToggle();
     setIsSaving(true);
     try {
       await createMemory.mutateAsync({
@@ -128,6 +129,7 @@ export default function QuickMemory() {
   };
 
   const handleClear = () => {
+    if (bigRecording) bigToggle();
     setTranscript("");
   };
 

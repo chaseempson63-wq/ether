@@ -259,16 +259,15 @@ export default function MindMap() {
     ref.curr = [];
   }, []);
 
-  // ─── d3-force config (Obsidian parity) ───
+  // ─── d3-force config (Obsidian parity + anti-drift) ───
   //
-  // Obsidian's graph view lets the simulation stop at rest. Heavy warmup so
-  // the layout appears already settled on first render. Moderate repulsion
-  // and short links keep the graph cohesive. The library's default center +
-  // x/y forces handle the cohesion — no custom tweaks needed.
+  // Simulation stops at rest. Heavy warmup pre-settles the layout. Every
+  // reheat (drag / data change) runs with a gentle center-gravity pull so
+  // the graph never sprawls to the edges over time — fixes the "abyss
+  // expanding" drift after repeated interactions.
   //
   // Drag behavior is entirely native: the library reheats to alphaTarget=0.3
-  // on drag start, drops to 0 on release, and alpha decays naturally until
-  // the sim stops again. Same flow Obsidian uses.
+  // on drag start, drops to 0 on release, alpha decays, engine stops.
   useEffect(() => {
     const fg = graphRef.current;
     if (!fg) return;
@@ -277,19 +276,31 @@ export default function MindMap() {
       n.fx = undefined;
       n.fy = undefined;
     });
-    // Keep library defaults for center/x/y — those give Obsidian-like cohesion.
     fg.d3Force("charge")?.strength(-180);
-    fg.d3Force("link")?.distance(40);
+    fg.d3Force("link")?.distance(35);
+    // Explicit center gravity — gentle pull toward origin every tick. This is
+    // what keeps the graph cohesive over time: without it, repulsion slowly
+    // wins out after many interactions and nodes drift outward forever.
+    const xF = fg.d3Force("x") as any;
+    const yF = fg.d3Force("y") as any;
+    if (xF && typeof xF.strength === "function") xF.strength(0.08);
+    if (yF && typeof yF.strength === "function") yF.strength(0.08);
     fg.d3ReheatSimulation();
   }, [graphQuery.data, activeLayer]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // First-settle zoom-to-fit. Fires once when the engine naturally stops
-  // after initial layout. Subsequent drag-triggered stops don't re-fit (user
-  // has zoomed/panned intentionally by then).
+  // Zoom-to-fit fires ONCE per viewport context, never again. User's pan/zoom
+  // is sacred after the initial fit. Two contexts count:
+  //   - First mount (graph first appears)
+  //   - Layer filter change (different subset of nodes, new viewport sensible)
+  //
+  // We do NOT refit on graphQuery.data changes — those happen on every cache
+  // invalidation (after memory mutations) and would yank the user's zoom
+  // back to "fit all" on every interaction. That was the "auto-resets
+  // outward" bug.
   const hasFitRef = useRef(false);
   useEffect(() => {
     hasFitRef.current = false;
-  }, [graphQuery.data, activeLayer]);
+  }, [activeLayer]);
   const handleEngineStop = useCallback(() => {
     if (hasFitRef.current) return;
     const fg = graphRef.current;
@@ -317,17 +328,27 @@ export default function MindMap() {
     return set;
   })();
 
+  // Zoom level snapshot for nodePointerAreaPaint (not handed globalScale).
+  // drawNode runs every frame and updates this ref; pointer events read it.
+  const zoomRef = useRef(1);
+
   // ─── Node renderer ───
   //
-  // Obsidian-style: nodes in canvas-space (scale with zoom), labels in
-  // screen-space (constant pixel size — always readable). The sqrt-curve
-  // hierarchy ensures anchors remain visually dominant over leaves at all
-  // zoom levels.
+  // BOTH nodes AND labels render in screen-space (divided by globalScale) so
+  // zooming doesn't break readability. Node circles stay 8–22 screen-pixels,
+  // anchors floor at 9px so they're always visible. Labels also stay screen-
+  // constant. When zoomed in the graph spreads out but elements look the
+  // same; when zoomed out the graph tightens but elements stay legible.
   const drawNode = useCallback(
     (node: GraphNode, ctx: CanvasRenderingContext2D, globalScale: number) => {
+      zoomRef.current = globalScale;
       const color = LAYER_COLORS[node.hallidayLayer] ?? "#64748b";
       const isAnchor = ANCHOR_NODE_TYPES.has(node.nodeType);
-      const radius = computeNodeRadius(node.edgeCount, node.nodeType);
+      const baseRadius = computeNodeRadius(node.edgeCount, node.nodeType);
+      // Screen-space: canvas radius / zoom = constant screen pixels.
+      // Anchor floor of 9 screen-px so they're visible at any zoom level.
+      const rScreen = isAnchor ? Math.max(9, baseRadius) : baseRadius;
+      const radius = rScreen / globalScale;
       const priority = computeNodePriority(node.nodeType, node.edgeCount);
       const isHovered = hoveredNode?.id === node.id;
       const x = node.x ?? 0;
@@ -554,9 +575,14 @@ export default function MindMap() {
             graphData={filteredData}
             nodeCanvasObject={drawNode}
             nodePointerAreaPaint={(node: GraphNode, color, ctx) => {
-              // Canvas-space hit-test, matches the visible circle. +4px for
-              // easier clicking.
-              const r = computeNodeRadius(node.edgeCount, node.nodeType) + 4;
+              // Match drawNode's screen-space radius so hit-test stays
+              // aligned with the visible circle at every zoom level.
+              const scale = zoomRef.current || 1;
+              const isAnchor = ANCHOR_NODE_TYPES.has(node.nodeType);
+              const base = computeNodeRadius(node.edgeCount, node.nodeType);
+              const rScreen = isAnchor ? Math.max(9, base) : base;
+              // +4px screen-space padding for easier clicking
+              const r = (rScreen + 4) / scale;
               ctx.fillStyle = color;
               ctx.beginPath();
               ctx.arc(node.x ?? 0, node.y ?? 0, r, 0, Math.PI * 2);

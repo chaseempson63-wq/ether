@@ -313,3 +313,22 @@ export const interviewQuestions = pgTable("interview_questions_v2", {
 ]);
 
 export type InterviewQuestion = typeof interviewQuestions.$inferSelect;
+
+// ─── Interview generation logs (Phase 2: audit trail for L2/L3 Venice calls) ───
+
+export const interviewGenerationLogs = pgTable("interview_generation_logs", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  userId: integer("user_id").notNull(),
+  level: integer("level").notNull(),
+  prompt: text("prompt").notNull(),
+  response: text("response"),
+  validCount: integer("valid_count").notNull().default(0),
+  rejectedCount: integer("rejected_count").notNull().default(0),
+  rejectionNotes: jsonb("rejection_notes").$type<string[]>(),
+  error: text("error"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  index("interview_generation_logs_user_level_idx").on(table.userId, table.level),
+]);
+
+export type InterviewGenerationLog = typeof interviewGenerationLogs.$inferSelect;

@@ -9,6 +9,7 @@ import { TRPCError } from "@trpc/server";
 import {
   interviewLevels,
   interviewQuestions,
+  interviewGenerationLogs,
   hallidayLayerEnum,
 } from "../../drizzle/schema";
 import { eq, and, asc, isNull, count } from "drizzle-orm";
@@ -310,18 +311,109 @@ async function ensureLevelsExist(userId: number) {
   return rows.sort((a, b) => a.level - b.level);
 }
 
-async function generateLevelQuestions(
+// ─── Venice generation for L2/L3 ───
+// Phase 2 overhaul (Apr 2026): pass raw L1 answers as primary source,
+// demand 4 fields (question, layer, helperText, exampleAnswers),
+// mirror not reframe, persist full prompt+response for auditability.
+
+const GENERATION_SYSTEM_PROMPT_BASE = `You are generating interview questions for a personal identity AI platform.
+The user has already answered 20 Level 1 questions in their own words. Their raw answers are your PRIMARY source.
+A list of auto-extracted entities from their broader memory graph is your SUPPLEMENTAL context.
+
+CRITICAL RULES:
+1. MIRROR, DO NOT REFRAME. Use the user's own words and phrases. Quote fragments of what they said when useful.
+   Do NOT correct, moderate, soften, reinterpret, or editorialize their content. Do not add your own framing to their beliefs.
+   If you cannot generate a neutral follow-up for a specific topic they raised, SKIP it and generate a question about
+   a different topic instead. A missing question is better than a reframed one.
+2. Reference actual words. Good: "You said your grandmother taught you to count in Cantonese — when was the last
+   time you used that?" Bad: "Why is language important to you?" Bad questions will be rejected.
+3. Each question must feel personalized. If a question could apply to anyone without reading this user's answers, rewrite it or skip it.
+
+OUTPUT FORMAT — respond with ONLY a JSON object, no markdown, no preamble:
+{
+  "questions": [
+    {
+      "question": "string — 8-15 words (L2) or 10-20 words (L3). Direct, not therapeutic. Must reference the user's actual words.",
+      "layer": "one of: LAYER_ENUM",
+      "helperText": "string — a probe that helps the user unlock how to answer this specific question. Like 'Think about the last time you…' or 'Not the obvious version — the one where…'. Reference the user's own words when possible. 1-2 sentences.",
+      "exampleAnswers": [
+        "string — a realistic example answer: specific, personal, textured, real casual voice, 2-3 concrete details, uses 'I'.",
+        "string — a different personality/angle than example 1. Varied life, voice, depth.",
+        "string — a third distinct angle. Three varied examples per question — no clones."
+      ]
+    }
+  ]
+}
+Rules for exampleAnswers: each must be in a real human voice (casual, fragments OK, contractions, not essay-like). Must be specific (names, places, concrete details — not abstractions). Must use "I" / "my". No one-liners — each 2-3 sentences of texture. 3 examples per question, VARIED.`;
+
+function buildPrompt(
+  level: 2 | 3,
+  answers: Array<{ order: number; question: string; answer: string; layer: string }>,
+  supplemental: string,
+): string {
+  const questionCount = level === 2 ? 15 : 10;
+  const wordRange = level === 2 ? "8-15 words per question" : "10-20 words per question";
+  const framing = level === 2
+    ? `Generate exactly ${questionCount} follow-up questions that go DEEPER into specific things this user shared in their Level 1 answers. Probe the nuance behind what they said, the story they skipped, the tension they glossed over.`
+    : `Generate exactly ${questionCount} SYNTHESIS questions that find patterns across different things this user shared. Each question should connect ideas from 2+ Level 1 answers or memory graph entries — tensions, throughlines, surprising links in who they are.`;
+
+  const answersBlock = answers
+    .map((a) => `[L1 Q${a.order}] (${a.layer})\n  Q: ${a.question}\n  A: ${a.answer}`)
+    .join("\n\n");
+
+  return `${GENERATION_SYSTEM_PROMPT_BASE.replace("LAYER_ENUM", HALLIDAY_LAYERS.join(" | "))}
+
+${framing} ${wordRange}.
+
+═══ PRIMARY SOURCE — USER'S RAW LEVEL 1 ANSWERS ═══
+${answersBlock}
+
+═══ SUPPLEMENTAL — AUTO-EXTRACTED ENTITIES FROM MEMORY GRAPH ═══
+${supplemental || "(none)"}
+
+Generate the JSON now.`;
+}
+
+export async function generateLevelQuestions(
   userId: number,
   level: 2 | 3,
 ): Promise<void> {
   const db = await getDb();
   if (!db) return;
 
-  const nodes = await getMemoryNodesByUserId(userId, undefined, 300);
-  if (nodes.length === 0) return;
+  // Primary source: raw L1 Q+A pairs
+  const l1Answers = await db
+    .select({
+      orderIndex: interviewQuestions.orderIndex,
+      question: interviewQuestions.question,
+      answer: interviewQuestions.answer,
+      layer: interviewQuestions.layer,
+    })
+    .from(interviewQuestions)
+    .where(and(eq(interviewQuestions.userId, userId), eq(interviewQuestions.level, 1)))
+    .orderBy(asc(interviewQuestions.orderIndex));
 
-  // Build a concise summary of existing knowledge
-  const summary = nodes
+  const answeredL1 = l1Answers
+    .filter((r) => r.answer != null && r.answer.trim().length > 0)
+    .map((r) => ({
+      order: r.orderIndex,
+      question: r.question,
+      answer: r.answer as string,
+      layer: r.layer as string,
+    }));
+
+  if (answeredL1.length === 0) {
+    await db.insert(interviewGenerationLogs).values({
+      userId, level, prompt: "(skipped)", response: null,
+      validCount: 0, rejectedCount: 0,
+      error: "No answered L1 questions — cannot generate personalized follow-ups",
+    });
+    return;
+  }
+
+  // Supplemental: entity summaries from the memory graph
+  const nodes = await getMemoryNodesByUserId(userId, undefined, 300);
+  const supplemental = nodes
     .map((n) => {
       const name = (n.metadata as Record<string, unknown>)?.name as string | undefined;
       return `[${n.hallidayLayer}] ${name ?? n.summary ?? n.content.slice(0, 100)}`;
@@ -329,61 +421,127 @@ async function generateLevelQuestions(
     .slice(0, 60)
     .join("\n");
 
+  const prompt = buildPrompt(level, answeredL1, supplemental);
   const questionCount = level === 2 ? 15 : 10;
-  const layerList = HALLIDAY_LAYERS.join(", ");
 
-  const systemPrompt = level === 2
-    ? `You are generating personalized follow-up questions for a person. Here are facts from their Level 1 interview:\n\n${summary}\n\nGenerate exactly ${questionCount} questions that dig deeper into specific things they shared. Be specific — reference actual answers. Each must target one layer: [${layerList}]. Return ONLY a JSON array of objects: [{"question": "...", "layer": "..."}]. 8-15 words per question. Direct, not therapeutic.`
-    : `You are generating synthesis questions that find patterns across a person's identity. Here is everything known about them:\n\n${summary}\n\nGenerate exactly ${questionCount} questions connecting ideas across different identity layers — find surprising links, tensions, or throughlines. Reference at least 2 things they shared. Each must target one layer: [${layerList}]. Return ONLY a JSON array of objects: [{"question": "...", "layer": "..."}]. 10-20 words per question.`;
+  let responseText = "";
+  const rejectionNotes: string[] = [];
+  let validated: Array<{
+    question: string;
+    layer: typeof HALLIDAY_LAYERS[number];
+    helperText: string;
+    exampleAnswers: [string, string, string];
+  }> = [];
+  let errorText: string | null = null;
 
   try {
     const result = await invokeLLM({
       messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: "Generate the questions now." },
+        { role: "system", content: prompt },
+        { role: "user", content: "Generate the JSON now." },
       ],
     });
 
     const raw = result.choices?.[0]?.message?.content;
-    const text = typeof raw === "string"
+    responseText = typeof raw === "string"
       ? raw
       : Array.isArray(raw)
         ? raw.filter((p): p is { type: "text"; text: string } => typeof p === "object" && p.type === "text").map((p) => p.text).join("")
         : "";
 
-    const jsonMatch = text.match(/\[[\s\S]*\]/);
-    if (!jsonMatch) {
-      console.error(`[interviewMode] Failed to parse Venice response for level ${level}`);
-      return;
+    // Parse — tolerate markdown code fences
+    const stripped = responseText.replace(/```(?:json)?\s*/gi, "").replace(/```/g, "").trim();
+    // Find the JSON object — prefer {"questions": [...]} shape, fall back to a bare array
+    let parsedQuestions: any[] = [];
+    try {
+      const objMatch = stripped.match(/\{[\s\S]*\}/);
+      if (objMatch) {
+        const parsed = JSON.parse(objMatch[0]);
+        if (Array.isArray(parsed.questions)) parsedQuestions = parsed.questions;
+      }
+    } catch {
+      // ignore, try array
+    }
+    if (parsedQuestions.length === 0) {
+      const arrMatch = stripped.match(/\[[\s\S]*\]/);
+      if (arrMatch) {
+        try { parsedQuestions = JSON.parse(arrMatch[0]); } catch { /* ignore */ }
+      }
     }
 
-    const parsed = JSON.parse(jsonMatch[0]) as Array<{ question: string; layer: string }>;
-    const validated = parsed
-      .filter(
-        (q) =>
-          typeof q.question === "string" &&
-          q.question.length >= 10 &&
-          HALLIDAY_LAYERS.includes(q.layer as typeof HALLIDAY_LAYERS[number])
-      )
-      .slice(0, questionCount);
-
-    if (validated.length === 0) {
-      console.error(`[interviewMode] No valid questions generated for level ${level}`);
-      return;
+    if (!Array.isArray(parsedQuestions) || parsedQuestions.length === 0) {
+      errorText = "Failed to parse Venice response as JSON with questions array";
+    } else {
+      // Validate each entry — reject if ANY of the 4 fields is malformed
+      for (let idx = 0; idx < parsedQuestions.length; idx++) {
+        const q = parsedQuestions[idx];
+        const note = (reason: string) => `idx ${idx}: ${reason}`;
+        if (typeof q?.question !== "string" || q.question.trim().length < 10) {
+          rejectionNotes.push(note("question missing / < 10 chars"));
+          continue;
+        }
+        if (!HALLIDAY_LAYERS.includes(q.layer)) {
+          rejectionNotes.push(note(`invalid layer: ${q.layer}`));
+          continue;
+        }
+        if (typeof q.helperText !== "string" || q.helperText.trim().length === 0) {
+          rejectionNotes.push(note("helperText missing or empty"));
+          continue;
+        }
+        if (!Array.isArray(q.exampleAnswers) || q.exampleAnswers.length !== 3) {
+          rejectionNotes.push(note(`exampleAnswers must be array of 3 (got ${Array.isArray(q.exampleAnswers) ? q.exampleAnswers.length : typeof q.exampleAnswers})`));
+          continue;
+        }
+        if (!q.exampleAnswers.every((e: any) => typeof e === "string" && e.trim().length > 0)) {
+          rejectionNotes.push(note("exampleAnswers contain empty/non-string entries"));
+          continue;
+        }
+        validated.push({
+          question: q.question.trim(),
+          layer: q.layer,
+          helperText: q.helperText.trim(),
+          exampleAnswers: [
+            q.exampleAnswers[0].trim(),
+            q.exampleAnswers[1].trim(),
+            q.exampleAnswers[2].trim(),
+          ],
+        });
+        if (validated.length >= questionCount) break;
+      }
     }
-
-    await db.insert(interviewQuestions).values(
-      validated.map((q, i) => ({
-        userId,
-        level,
-        question: q.question,
-        layer: q.layer as typeof HALLIDAY_LAYERS[number],
-        orderIndex: i + 1,
-      }))
-    );
   } catch (err) {
-    console.error(`[interviewMode] Question generation failed for level ${level}:`, err);
+    errorText = err instanceof Error ? err.message : String(err);
+    console.error(`[interviewMode] Generation failed for level ${level}:`, err);
   }
+
+  // Persist everything — success or failure — before inserting questions
+  await db.insert(interviewGenerationLogs).values({
+    userId,
+    level,
+    prompt,
+    response: responseText || null,
+    validCount: validated.length,
+    rejectedCount: rejectionNotes.length,
+    rejectionNotes: rejectionNotes.length > 0 ? rejectionNotes : null,
+    error: errorText,
+  });
+
+  if (validated.length === 0) {
+    console.error(`[interviewMode] No valid L${level} questions after validation (user=${userId}). Rejections: ${rejectionNotes.length}`);
+    return;
+  }
+
+  await db.insert(interviewQuestions).values(
+    validated.map((q, i) => ({
+      userId,
+      level,
+      question: q.question,
+      layer: q.layer,
+      orderIndex: i + 1,
+      helperText: q.helperText,
+      exampleAnswers: q.exampleAnswers,
+    }))
+  );
 }
 
 // ─── Router ───

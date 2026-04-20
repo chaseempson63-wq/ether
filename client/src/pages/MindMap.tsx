@@ -263,8 +263,8 @@ export default function MindMap() {
   // and skip their label if one is nearby. Stale by 1 frame but positions move
   // slowly enough that this is imperceptible.
   const labelBboxRef = useRef<{
-    prev: Array<{ x: number; y: number; w: number; h: number; priority: number }>;
-    curr: Array<{ x: number; y: number; w: number; h: number; priority: number }>;
+    prev: Array<{ x: number; y: number; w: number; h: number; priority: number; id: string }>;
+    curr: Array<{ x: number; y: number; w: number; h: number; priority: number; id: string }>;
   }>({ prev: [], curr: [] });
 
   const handleRenderFramePre = useCallback(() => {
@@ -302,15 +302,24 @@ export default function MindMap() {
     fg.d3ReheatSimulation();
   }, [graphQuery.data, activeLayer]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Zoom-to-fit fires ONCE per viewport context, never again. User's pan/zoom
-  // is sacred after the initial fit. Two contexts count:
+  // Initial framing fires ONCE per viewport context, never again. User's
+  // pan/zoom is sacred after the initial fit. Two contexts count:
   //   - First mount (graph first appears)
-  //   - Layer filter change (different subset of nodes, new viewport sensible)
+  //   - Layer filter change (different subset of nodes)
   //
-  // We do NOT refit on graphQuery.data changes — those happen on every cache
-  // invalidation (after memory mutations) and would yank the user's zoom
-  // back to "fit all" on every interaction. That was the "auto-resets
-  // outward" bug.
+  // We do NOT refit on graphQuery.data changes — cache invalidations would
+  // otherwise yank the viewport back to fit-all on every memory mutation.
+  //
+  // Framing strategy:
+  //   Plain zoomToFit() gives the FULL-EXTENT zoom — the entire node cloud
+  //   barely fits in the viewport, producing a tiny compressed blob. Users
+  //   had to manually scroll-wheel in significantly to get a readable view.
+  //
+  //   Instead we do a two-step: (1) instant zoomToFit to center the bbox and
+  //   get the library's natural fit-zoom `zoomK`, then (2) animate in to
+  //   `zoomK * ZOOM_IN_MULTIPLIER` so the default view lands at a cluster-
+  //   level read zoom. Outliers get cropped — that's the goal. The tight
+  //   dense center is what the user wants to see first.
   const hasFitRef = useRef(false);
   useEffect(() => {
     hasFitRef.current = false;
@@ -320,7 +329,16 @@ export default function MindMap() {
     const fg = graphRef.current;
     if (!fg) return;
     hasFitRef.current = true;
-    fg.zoomToFit(400, 80);
+
+    // Tune this if the cluster ends up too tight or too loose on first load.
+    // 2.5 frames a small-cluster-level view; 3.5 feels like you're inside
+    // one family.
+    const ZOOM_IN_MULTIPLIER = 2.8;
+    // Step 1: instant center + natural fit-zoom
+    fg.zoomToFit(0, 80);
+    const naturalFit = fg.zoom();
+    // Step 2: animate in to the cluster-level zoom
+    fg.zoom(naturalFit * ZOOM_IN_MULTIPLIER, 500);
   }, []);
 
   // Drag is handled entirely natively by the library: alphaTarget=0.3 on drag
@@ -425,16 +443,20 @@ export default function MindMap() {
       const labelHeight = fontSize * 1.15;
       const labelX = x - labelWidth / 2;
       const labelY = y + radius + 3;
-      const myBbox = { x: labelX, y: labelY, w: labelWidth, h: labelHeight, priority };
+      const myBbox = { x: labelX, y: labelY, w: labelWidth, h: labelHeight, priority, id: node.id };
 
-      // Collision: suppress this label if a STRICTLY higher-priority label
-      // from last frame would overlap. Hovered nodes always draw.
+      // Collision: suppress this label if a higher-priority label from last
+      // frame would overlap. For equal-priority ties (two leaves with same
+      // edge count), the node with the lexicographically smaller id wins
+      // — deterministic and stable across frames so one label consistently
+      // hides instead of both stacking. Hovered nodes always draw.
       const bboxRef = labelBboxRef.current;
       const overlaps =
         !isHovered &&
         bboxRef.prev.some(
           (b) =>
-            b.priority > priority &&
+            (b.priority > priority ||
+              (b.priority === priority && b.id < node.id)) &&
             labelX < b.x + b.w &&
             labelX + labelWidth > b.x &&
             labelY < b.y + b.h &&

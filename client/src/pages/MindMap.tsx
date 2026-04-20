@@ -47,6 +47,34 @@ const THRESHOLDS = [
   { pct: 1.0, label: "COMPLETE" },
 ];
 
+// Node types that represent memory anchors (roots of families). These dominate
+// their children visually even when edge counts are close.
+const ANCHOR_NODE_TYPES = new Set(["memory", "event"]);
+
+// Render-time label normalizer. Handles messy DB casing ("OPTIMISTIC mindset",
+// "booking A flight", "Weird-Caps") → "Optimistic mindset", "Booking a flight".
+function toSentenceCase(raw: string): string {
+  if (!raw) return "";
+  const trimmed = raw.trim();
+  if (!trimmed) return "";
+  const lower = trimmed.toLowerCase();
+  return lower.charAt(0).toUpperCase() + lower.slice(1);
+}
+
+// Power-curve node sizing. Anchors visually dominate leaves; floor keeps tiny
+// nodes clickable; ceiling keeps hubs from eating the canvas.
+function computeNodeRadius(edgeCount: number, nodeType: string): number {
+  const base = 4 + Math.sqrt(Math.max(edgeCount, 0)) * 4;
+  const anchorBoost = ANCHOR_NODE_TYPES.has(nodeType) ? 1.15 : 1;
+  return Math.max(4, Math.min(22, base * anchorBoost));
+}
+
+// Z-order + label collision priority. Anchors always outrank leaves; within a
+// tier, more edges = higher priority.
+function computeNodePriority(nodeType: string, edgeCount: number): number {
+  return (ANCHOR_NODE_TYPES.has(nodeType) ? 1000 : 0) + edgeCount;
+}
+
 function getThresholdLabel(pct: number) {
   for (const t of THRESHOLDS) {
     if (pct <= t.pct) return t.label;
@@ -163,11 +191,22 @@ export default function MindMap() {
   }, []);
 
   // ─── Filter graph data by active layer ───
+  //
+  // Nodes are sorted by priority ASCENDING (leaves first, anchors last) so the
+  // canvas paints anchors on TOP of leaves in z-order. Label collision then
+  // uses a cross-frame bbox cache (see labelBboxRef below) so lower-priority
+  // leaf labels get suppressed when they'd overlap an anchor label, regardless
+  // of paint order.
   const filteredData = (() => {
     if (!graphQuery.data) return { nodes: [], links: [] };
-    const nodes = activeLayer
+    const nodesRaw = activeLayer
       ? graphQuery.data.nodes.filter((n) => n.hallidayLayer === activeLayer)
       : graphQuery.data.nodes;
+    const nodes = [...nodesRaw].sort(
+      (a, b) =>
+        computeNodePriority(a.nodeType, a.edgeCount) -
+        computeNodePriority(b.nodeType, b.edgeCount)
+    );
     const nodeIds = new Set(nodes.map((n) => n.id));
     const links = graphQuery.data.edges.filter((e) => {
       const src = edgeNodeId(e.source);
@@ -178,41 +217,65 @@ export default function MindMap() {
     return { nodes, links } as any;
   })();
 
-  // ─── d3-force config (clean slate — charge + link only) ───
+  // ─── Label collision tracking ───
+  //
+  // We use a two-frame swap: drawNode writes into `currFrame`, and each new
+  // render frame promotes `currFrame` → `prevFrame` via onRenderFramePre. Lower-
+  // priority nodes check `prevFrame` for overlap with higher-priority labels
+  // and skip their label if one is nearby. Stale by 1 frame but positions move
+  // slowly enough that this is imperceptible.
+  const labelBboxRef = useRef<{
+    prev: Array<{ x: number; y: number; w: number; h: number; priority: number }>;
+    curr: Array<{ x: number; y: number; w: number; h: number; priority: number }>;
+  }>({ prev: [], curr: [] });
+
+  const handleRenderFramePre = useCallback(() => {
+    const ref = labelBboxRef.current;
+    ref.prev = ref.curr;
+    ref.curr = [];
+  }, []);
+
+  // ─── d3-force config ───
+  //
+  // No custom forces — just slightly stronger repulsion than the default so
+  // bigger anchor nodes (up to 22px) have room to breathe. The library's
+  // built-in drag handler already sets alphaTarget(0.3) on drag start and
+  // resets to 0 on drag end, AND auto-unpins nodes that weren't pinned before
+  // the drag. So we do NOT pin anywhere — let the library's internals do the
+  // Obsidian-style settle.
   useEffect(() => {
     const fg = graphRef.current;
     if (!fg) return;
     // Unpin all nodes so layout recalculates
-    filteredData.nodes?.forEach((n: any) => { n.fx = undefined; n.fy = undefined; });
-    // Remove ALL custom forces — let the library handle centering
+    filteredData.nodes?.forEach((n: any) => {
+      n.fx = undefined;
+      n.fy = undefined;
+    });
     fg.d3Force("center", null);
     fg.d3Force("x", null);
     fg.d3Force("y", null);
-    // Simple repulsion + link attraction
-    fg.d3Force("charge")?.strength(-200);
+    fg.d3Force("charge")?.strength(-240);
     fg.d3Force("link")?.distance(80).strength(0.4);
     fg.d3ReheatSimulation();
+
+    // Engine runs forever (cooldownTicks=Infinity), so onEngineStop never
+    // fires. Fit the view once after initial settle via setTimeout instead.
+    const fitTimer = setTimeout(() => {
+      fg.zoomToFit(600, 80);
+    }, 900);
+    return () => clearTimeout(fitTimer);
   }, [graphQuery.data, activeLayer]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Pin all nodes once simulation settles + zoom to fit. Nothing else.
-  const handleEngineStop = useCallback(() => {
-    const fg = graphRef.current;
-    if (!fg) return;
-    filteredData.nodes?.forEach((n: any) => {
-      if (n.x != null) n.fx = n.x;
-      if (n.y != null) n.fy = n.y;
-    });
-    fg.zoomToFit(400, 80);
-  }, [filteredData.nodes]);
-
-  // Dragging updates pinned position
-  const handleNodeDrag = useCallback((node: any) => {
-    node.fx = node.x;
-    node.fy = node.y;
+  // Drag / drag-end: intentionally no-ops. The library:
+  //  - during drag: fixes the node via obj.fx/fy internally + alphaTarget(0.3)
+  //  - on release: clears obj.fx/fy if the node wasn't pinned before drag,
+  //    and drops alphaTarget back to 0 so the graph settles naturally.
+  // We used to pin on both, which froze the graph. Don't do that.
+  const handleNodeDrag = useCallback((_node: any) => {
+    // intentionally empty — library handles drag pinning + reheat at 0.3
   }, []);
-  const handleNodeDragEnd = useCallback((node: any) => {
-    node.fx = node.x;
-    node.fy = node.y;
+  const handleNodeDragEnd = useCallback((_node: any) => {
+    // intentionally empty — library auto-unpins + drains alphaTarget
   }, []);
 
   // ─── Hovered node edge set ───
@@ -233,13 +296,15 @@ export default function MindMap() {
   const drawNode = useCallback(
     (node: GraphNode, ctx: CanvasRenderingContext2D, globalScale: number) => {
       const color = LAYER_COLORS[node.hallidayLayer] ?? "#64748b";
-      const radius = Math.min(6 + node.depth * 6 + Math.min(node.edgeCount * 0.5, 4), 12);
+      const isAnchor = ANCHOR_NODE_TYPES.has(node.nodeType);
+      const radius = computeNodeRadius(node.edgeCount, node.nodeType);
+      const priority = computeNodePriority(node.nodeType, node.edgeCount);
       const isHovered = hoveredNode?.id === node.id;
       const x = node.x ?? 0;
       const y = node.y ?? 0;
 
       // Ambient glow halo (1.8x radius, subtle)
-      const glowAlpha = isHovered ? 0.15 : 0.06;
+      const glowAlpha = isHovered ? 0.18 : isAnchor ? 0.08 : 0.05;
       ctx.beginPath();
       ctx.arc(x, y, radius * 1.8, 0, Math.PI * 2);
       ctx.fillStyle =
@@ -249,21 +314,65 @@ export default function MindMap() {
           .padStart(2, "0");
       ctx.fill();
 
-      // Main circle
+      // Main circle — anchors fully saturated, leaves slightly muted
       ctx.beginPath();
       ctx.arc(x, y, radius, 0, Math.PI * 2);
-      ctx.fillStyle = isHovered ? color : color + "b3";
+      ctx.fillStyle = isHovered ? color : color + (isAnchor ? "d9" : "a6");
       ctx.fill();
 
-      // Label — always visible, brighter on hover
-      const fontSize = Math.max(10 / globalScale, 2.5);
-      ctx.font = `400 ${fontSize}px Sora, system-ui, sans-serif`;
+      // Label. Full text — no truncation. Anchors get slightly larger font and
+      // higher opacity so they pop above leaves without over-dominating.
+      const baseFontSize = isAnchor ? 11 : 9.5;
+      const fontSize = Math.max(baseFontSize / globalScale, 2.5);
+      const fontWeight = isAnchor ? 500 : 400;
+      ctx.font = `${fontWeight} ${fontSize}px Sora, system-ui, sans-serif`;
       ctx.textAlign = "center";
       ctx.textBaseline = "top";
-      ctx.fillStyle = isHovered ? "#f8fafc" : "#e2e8f066";
-      const label =
-        node.label.length > 20 ? node.label.slice(0, 18) + "…" : node.label;
-      ctx.fillText(label, x, y + radius + 2);
+
+      const label = toSentenceCase(node.label);
+      const labelWidth = ctx.measureText(label).width;
+      const labelHeight = fontSize * 1.15;
+      const labelX = x - labelWidth / 2;
+      const labelY = y + radius + 3;
+      const myBbox = { x: labelX, y: labelY, w: labelWidth, h: labelHeight, priority };
+
+      // Collision: suppress this label if a STRICTLY higher-priority label
+      // from last frame would overlap. Hovered nodes always draw.
+      const bboxRef = labelBboxRef.current;
+      const overlaps =
+        !isHovered &&
+        bboxRef.prev.some(
+          (b) =>
+            b.priority > priority &&
+            labelX < b.x + b.w &&
+            labelX + labelWidth > b.x &&
+            labelY < b.y + b.h &&
+            labelY + labelHeight > b.y
+        );
+
+      // Always record bbox so next frame's leaves can check against us.
+      bboxRef.curr.push(myBbox);
+
+      if (overlaps) return;
+
+      if (isHovered) {
+        // Subtle dark backdrop chip so the hovered label is always readable
+        // above any neighbor pixels.
+        const pad = 3;
+        ctx.fillStyle = "rgba(8, 11, 20, 0.85)";
+        ctx.fillRect(
+          labelX - pad,
+          labelY - pad,
+          labelWidth + pad * 2,
+          labelHeight + pad * 2
+        );
+        ctx.fillStyle = "#f8fafc";
+      } else {
+        // 90% for anchors, 75% for leaves (readability over subtlety —
+        // legacy product, text must be legible at rest).
+        ctx.fillStyle = isAnchor ? "#e2e8f0e6" : "#e2e8f0bf";
+      }
+      ctx.fillText(label, x, labelY);
     },
     [hoveredNode]
   );
@@ -410,25 +519,30 @@ export default function MindMap() {
             graphData={filteredData}
             nodeCanvasObject={drawNode}
             nodePointerAreaPaint={(node: GraphNode, color, ctx) => {
-              const r = Math.min(6 + node.depth * 6 + Math.min(node.edgeCount * 0.5, 4), 12);
+              const r = computeNodeRadius(node.edgeCount, node.nodeType);
               ctx.fillStyle = color;
               ctx.beginPath();
               ctx.arc(node.x ?? 0, node.y ?? 0, r + 4, 0, Math.PI * 2);
               ctx.fill();
             }}
             linkCanvasObject={drawLink}
+            onRenderFramePre={handleRenderFramePre}
             onNodeClick={handleNodeClick}
             onNodeHover={handleNodeHover}
             onNodeDrag={handleNodeDrag}
             onNodeDragEnd={handleNodeDragEnd}
-            onEngineStop={handleEngineStop}
             backgroundColor="#080b14"
             width={containerSize.width}
             height={containerSize.height}
-            cooldownTicks={200}
-            d3AlphaDecay={0.02}
-            d3VelocityDecay={0.3}
-            warmupTicks={0}
+            // Engine never fully freezes — keeps the graph breathing. With
+            // alphaDecay=0.01 forces drain to near-zero in ~3–4s so CPU work
+            // is minimal at rest, but any interaction (drag, layer switch)
+            // immediately reheats via the library's built-in drag handler.
+            cooldownTicks={Infinity}
+            d3AlphaDecay={0.01}
+            d3AlphaMin={0}
+            d3VelocityDecay={0.32}
+            warmupTicks={30}
             nodeId="id"
             linkSource="source"
             linkTarget="target"
@@ -470,7 +584,7 @@ export default function MindMap() {
                     <span className="flex items-center gap-1.5">
                       <span className="text-[9px] uppercase tracking-[0.08em] font-medium" style={{ color }}>{LAYER_LABELS[prompt.layer]}</span>
                       <span className="text-[9px] text-slate-600">·</span>
-                      <span className="text-[12px] text-white truncate">&ldquo;{prompt.nodeLabel}&rdquo;</span>
+                      <span className="text-[12px] text-white truncate">&ldquo;{toSentenceCase(prompt.nodeLabel)}&rdquo;</span>
                     </span>
                     <span className="text-[11px] text-[#94a3b8] truncate">
                       {prompt.question}
@@ -489,7 +603,7 @@ export default function MindMap() {
                     <span className="flex items-center gap-1.5">
                       <span className="text-[9px] uppercase tracking-[0.08em] font-medium" style={{ color }}>{LAYER_LABELS[prompt.layer]}</span>
                       <span className="text-[9px] text-slate-600">·</span>
-                      <span className="text-[12px] text-white">&ldquo;{prompt.nodeLabel}&rdquo;</span>
+                      <span className="text-[12px] text-white">&ldquo;{toSentenceCase(prompt.nodeLabel)}&rdquo;</span>
                     </span>
                     <button
                       onClick={() => setExpandedPrompt(null)}
@@ -561,7 +675,7 @@ export default function MindMap() {
             <div className="p-5 h-full overflow-y-auto">
               <div className="flex items-start justify-between mb-3">
                 <h2 className="text-[20px] font-medium text-white pr-4 leading-tight">
-                  {selectedNode.label}
+                  {toSentenceCase(selectedNode.label)}
                 </h2>
                 <button
                   onClick={() => setSelectedNode(null)}
@@ -630,7 +744,7 @@ export default function MindMap() {
                           style={{ backgroundColor: LAYER_COLORS[n.hallidayLayer] }}
                         />
                         <span className="text-[12px] text-slate-400 truncate">
-                          {n.label}
+                          {toSentenceCase(n.label)}
                         </span>
                       </button>
                     ))}

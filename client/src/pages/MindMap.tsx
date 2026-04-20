@@ -323,6 +323,10 @@ export default function MindMap() {
         answer: text,
         targetLayer: prompt.layer as any,
         targetNodeType: (layerToType[prompt.layer] ?? "memory") as any,
+        // Carry source node forward so the server enriches it instead of
+        // spawning an orphan. null prompts (generic bootstrap) fall through
+        // to the free-creation path.
+        sourceNodeId: prompt.nodeId ?? undefined,
       });
       setAnswerTexts((prev) => ({ ...prev, [prompt.id]: "" }));
       setDismissedPrompts((prev) => new Set(prev).add(prompt.id));

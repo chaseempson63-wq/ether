@@ -5,6 +5,7 @@ import {
   createMemoryEdge,
   searchMemoryNodesByName,
   updateMemoryNode,
+  getMemoryNodesByIds,
 } from "./db";
 import type { InsertMemoryNode } from "../drizzle/schema";
 
@@ -43,6 +44,7 @@ const VALID_RELATIONSHIP_TYPES = new Set([
   "taught_by", "influenced_by", "contradicts", "supports",
   "evolved_from", "experienced_during", "related_to", "caused",
   "involves_person", "involves_place",
+  "elaborates_on",
 ]);
 
 // ─── Helpers ───
@@ -380,5 +382,125 @@ export async function processContent(
       err instanceof Error ? err.message : err
     );
     // Never throw — this is a background job
+  }
+}
+
+/**
+ * Process a probe response — the user answered a prompt targeting an existing node.
+ *
+ * Default behavior: enrich the source node by appending the probe response to its
+ * content and regenerating the embedding. No new node is created for the raw answer.
+ *
+ * Escalation: if entity extraction finds genuinely new entities (not already in the
+ * user's graph), create child nodes for them and link each back to the source with
+ * an "elaborates_on" edge. Existing entities are still touched for metadata/alias
+ * updates (handled by resolveOrCreateNodes) but no duplicate edges are created.
+ *
+ * Returns the IDs of any newly created child nodes so the caller can surface them
+ * to the UI. Never throws — errors are logged and a safe shape is returned.
+ */
+export async function processProbeResponse(
+  userId: number,
+  sourceNodeId: string,
+  probeResponse: string,
+  sourceType: InsertMemoryNode["sourceType"]
+): Promise<{ enrichedSource: boolean; newChildNodeIds: string[] }> {
+  try {
+    // Step 1: Fetch the source node and verify ownership
+    const sources = await getMemoryNodesByIds([sourceNodeId]);
+    const source = sources[0];
+    if (!source || source.userId !== userId) {
+      console.warn(
+        `[GraphPipeline] Probe source ${sourceNodeId} missing or not owned by user ${userId}`
+      );
+      return { enrichedSource: false, newChildNodeIds: [] };
+    }
+
+    // Step 2: Append probe response to content, regenerate embedding, bump updatedAt
+    const nextContent = `${source.content}\n\n${probeResponse}`.trim();
+    const embeddingInput = source.summary
+      ? `${source.summary}: ${nextContent}`
+      : nextContent;
+
+    let nextEmbedding: number[] | undefined;
+    try {
+      const embedRes = await generateEmbedding(embeddingInput);
+      nextEmbedding = embedRes.embedding;
+    } catch (e) {
+      console.warn(
+        "[GraphPipeline] Failed to re-embed enriched source, keeping old embedding:",
+        e
+      );
+    }
+
+    await updateMemoryNode(sourceNodeId, {
+      content: nextContent,
+      embedding: nextEmbedding,
+    });
+
+    // Step 3: Extract entities from the probe response only (not the merged content)
+    const entities = await withRetry(
+      () => extractEntities(probeResponse),
+      "extractProbeEntities"
+    );
+    if (entities.length === 0) {
+      console.log(
+        `[GraphPipeline] Probe ${sourceNodeId}: enriched, no new entities extracted`
+      );
+      return { enrichedSource: true, newChildNodeIds: [] };
+    }
+
+    // Step 4: Resolve or create nodes. Record probeStart so we can tell which nodes
+    // were newly created (by createdAt timestamp) vs matched to existing nodes.
+    const probeStart = new Date();
+    const nameToId = await resolveOrCreateNodes(userId, entities, sourceType);
+
+    const resolvedNodes = await getMemoryNodesByIds(Array.from(nameToId.values()));
+    const newChildNodeIds = resolvedNodes
+      .filter((n) => n.id !== sourceNodeId && n.createdAt >= probeStart)
+      .map((n) => n.id);
+
+    // Step 5: Edge each new child back to the source with "elaborates_on"
+    for (const childId of newChildNodeIds) {
+      try {
+        await createMemoryEdge(userId, {
+          sourceNodeId,
+          targetNodeId: childId,
+          relationshipType: "elaborates_on",
+          strength: 0.8,
+          evidence: probeResponse.slice(0, 500),
+        });
+      } catch (e) {
+        console.warn(
+          `[GraphPipeline] Failed to create elaborates_on edge ${sourceNodeId} -> ${childId}:`,
+          e
+        );
+      }
+    }
+
+    // Step 6: Generate embeddings for newly created children only
+    if (newChildNodeIds.length > 0) {
+      const newEntityNameToId = new Map<string, string>();
+      const newEntities: ExtractedEntity[] = [];
+      for (const e of entities) {
+        const id = nameToId.get(e.name);
+        if (id && newChildNodeIds.includes(id)) {
+          newEntityNameToId.set(e.name, id);
+          newEntities.push(e);
+        }
+      }
+      await embedNodes(newEntityNameToId, newEntities);
+    }
+
+    console.log(
+      `[GraphPipeline] Probe ${sourceNodeId}: enriched source, created ${newChildNodeIds.length} child node(s)`
+    );
+    return { enrichedSource: true, newChildNodeIds };
+  } catch (err) {
+    console.error(
+      "[GraphPipeline] processProbeResponse failed:",
+      err instanceof Error ? err.message : err
+    );
+    return { enrichedSource: false, newChildNodeIds: [] };
   }
 }

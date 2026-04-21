@@ -76,6 +76,11 @@ export function EtherAvatar() {
       ? { message: nudge.message, cta: nudge.cta }
       : null;
 
+  // When the user toggles Companion off, hide the avatar entirely — no
+  // floating button, no auto-nudges. State persists in localStorage so it
+  // stays off across navigations.
+  if (!enabled) return null;
+
   return (
     <div className="fixed bottom-6 right-6 z-[1000] font-sora" ref={panelRef}>
       {/* Expanded nudge panel */}

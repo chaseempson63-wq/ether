@@ -341,8 +341,24 @@ export async function getDashboard(
     rarity: rarityForNode(n),
   }));
 
-  const coherence =
-    nodes.length === 0 ? 0 : Math.min(1, edges.length / nodes.length);
+  // Coherence combines two factors, neither of which can truly reach 1:
+  //   reach   = fraction of nodes that have at least one edge
+  //   density = 1 - exp(-avgDegree), asymptotes to 1 but never reaches
+  // So even a fully-connected graph with many edges sits around ~95%, which
+  // matches the product truth that a digital mind is never "done".
+  let coherence = 0;
+  if (nodes.length > 0) {
+    const connected = new Set<string>();
+    for (const e of edges) {
+      connected.add(e.sourceNodeId);
+      connected.add(e.targetNodeId);
+    }
+    const reach = connected.size / nodes.length;
+    const avgDegree =
+      connected.size === 0 ? 0 : (2 * edges.length) / connected.size;
+    const density = 1 - Math.exp(-avgDegree);
+    coherence = reach * density;
+  }
 
   // Ring counts are proportional to node count but capped so the visual
   // doesn't get hairy.

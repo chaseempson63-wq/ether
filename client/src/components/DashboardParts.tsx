@@ -256,15 +256,15 @@ export function BrainRingsViz({
             })}
           </g>
         ))}
-        {/* Core */}
-        <circle
-          cx="0"
-          cy="0"
-          r="18"
-          fill="white"
-          opacity="0.9"
-          style={{ filter: "drop-shadow(0 0 20px rgba(255,255,255,0.6))" }}
-        />
+        {/* Core — a small violet/cyan pulse, not a blinding white dot */}
+        <defs>
+          <radialGradient id="etherCore" cx="50%" cy="50%" r="50%">
+            <stop offset="0%" stopColor="#C9BFFF" stopOpacity="0.9" />
+            <stop offset="60%" stopColor="#6B5DFF" stopOpacity="0.4" />
+            <stop offset="100%" stopColor="#6B5DFF" stopOpacity="0" />
+          </radialGradient>
+        </defs>
+        <circle cx="0" cy="0" r="28" fill="url(#etherCore)" />
       </svg>
 
       {/* Center readouts */}
@@ -278,12 +278,14 @@ export function BrainRingsViz({
         </div>
       </div>
 
-      <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 flex gap-6 text-[11px] text-slate-500">
+      <div className="absolute -bottom-4 left-1/2 -translate-x-1/2 flex gap-8 text-sm text-slate-400 whitespace-nowrap">
         <div>
-          <span className="text-white tabular-nums">{nodes}</span> nodes
+          <span className="text-white text-base font-semibold tabular-nums">{nodes}</span>
+          <span className="ml-1.5 text-[11px] tracking-[0.16em] uppercase text-slate-500">nodes</span>
         </div>
         <div>
-          <span className="text-white tabular-nums">{connections}</span> connections
+          <span className="text-white text-base font-semibold tabular-nums">{connections}</span>
+          <span className="ml-1.5 text-[11px] tracking-[0.16em] uppercase text-slate-500">connections</span>
         </div>
       </div>
     </div>

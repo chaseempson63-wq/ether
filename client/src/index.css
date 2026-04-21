@@ -55,6 +55,18 @@
   --font-display: 'Space Grotesk', system-ui, sans-serif;
   --font-body: 'Source Serif 4', Georgia, serif;
   --font-ui: 'Inter', system-ui, sans-serif;
+
+  /* Canonical 8-value type scale. Use these and only these.
+   * Arbitrary values like text-[13px] are tolerated during Phase 3
+   * migration but should not be added to new code. */
+  --text-xxs: 11px;
+  --text-xs: 12px;
+  --text-sm: 14px;
+  --text-base: 16px;
+  --text-lg: 20px;
+  --text-xl: 24px;
+  --text-2xl: 36px;
+  --text-3xl: 48px;
 }
 
 :root {

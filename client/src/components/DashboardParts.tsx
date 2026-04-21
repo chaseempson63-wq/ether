@@ -267,26 +267,20 @@ export function BrainRingsViz({
         <circle cx="0" cy="0" r="28" fill="url(#etherCore)" />
       </svg>
 
-      {/* Center readouts */}
-      <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-        <div className="text-[10px] tracking-[0.22em] text-slate-500 uppercase mb-1">
+      {/* Center readouts — coherence is the hero metric, dominant in type. */}
+      <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none z-10">
+        <div className="text-[10px] tracking-widest text-slate-400 uppercase mb-1">
           Coherence
         </div>
-        <div className="text-2xl font-semibold text-white tabular-nums">
+        <div className="text-5xl font-[Space_Grotesk,system-ui,sans-serif] font-semibold tracking-tight text-white tabular-nums leading-none">
           {(coherence * 100).toFixed(0)}
-          <span className="text-slate-500 text-sm ml-0.5">%</span>
+          <span className="text-lg align-top ml-0.5 text-slate-400 font-normal">%</span>
         </div>
       </div>
 
-      <div className="absolute -bottom-4 left-1/2 -translate-x-1/2 flex gap-8 text-sm text-slate-400 whitespace-nowrap">
-        <div>
-          <span className="text-white text-base font-semibold tabular-nums">{nodes}</span>
-          <span className="ml-1.5 text-[11px] tracking-[0.16em] uppercase text-slate-500">nodes</span>
-        </div>
-        <div>
-          <span className="text-white text-base font-semibold tabular-nums">{connections}</span>
-          <span className="ml-1.5 text-[11px] tracking-[0.16em] uppercase text-slate-500">connections</span>
-        </div>
+      {/* Graph counts — pure metadata, tucked well below the viz. */}
+      <div className="absolute -bottom-7 left-1/2 -translate-x-1/2 text-xs text-slate-500 tracking-wide whitespace-nowrap tabular-nums">
+        {nodes} nodes · {connections} connections
       </div>
     </div>
   );

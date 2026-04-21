@@ -29,7 +29,7 @@ export default function BeneficiaryManagement() {
 
   if (!user) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-800">
+      <div className="flex items-center justify-center min-h-screen bg-ether-bg">
         <p className="text-slate-400">Please log in to manage beneficiaries</p>
       </div>
     );
@@ -61,13 +61,13 @@ export default function BeneficiaryManagement() {
   const getAccessLevelColor = (level: string) => {
     switch (level) {
       case "full":
-        return "bg-red-900/40 text-red-300 border border-red-800";
+        return "bg-ether-magenta/15 text-ether-magenta border border-ether-magenta/30";
       case "restricted":
-        return "bg-yellow-900/40 text-yellow-300 border border-yellow-800";
+        return "bg-amber-500/15 text-amber-400 border border-amber-500/30";
       case "legacy_only":
-        return "bg-blue-900/40 text-blue-300 border border-blue-800";
+        return "bg-ether-violet/15 text-ether-violet border border-ether-violet/30";
       default:
-        return "bg-slate-700 text-slate-300 border border-slate-600";
+        return "bg-white/[0.06] text-slate-300 border border-white/10";
     }
   };
 
@@ -85,13 +85,13 @@ export default function BeneficiaryManagement() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-800 p-6">
+    <div className="min-h-screen bg-ether-bg p-6">
       <div className="max-w-4xl mx-auto">
         <Button
           variant="ghost"
           size="sm"
           onClick={() => setLocation("/")}
-          className="mb-4 text-slate-400 hover:text-white hover:bg-slate-800"
+          className="mb-4 text-slate-400 hover:text-white hover:bg-white/[0.04]"
         >
           <ArrowLeft className="h-4 w-4 mr-2" />
           Home
@@ -107,7 +107,7 @@ export default function BeneficiaryManagement() {
 
         {/* Add Beneficiary Form */}
         {!isAddingBeneficiary ? (
-          <Card className="mb-8 bg-slate-800 border-slate-700">
+          <Card className="mb-8 bg-white/[0.04] border-white/[0.06]">
             <CardHeader>
               <CardTitle className="text-white">Add a Beneficiary</CardTitle>
               <CardDescription className="text-slate-400">
@@ -118,7 +118,8 @@ export default function BeneficiaryManagement() {
               <Button
                 onClick={() => setIsAddingBeneficiary(true)}
                 size="lg"
-                className="w-full bg-blue-600 hover:bg-blue-700"
+                data-ether-variant="primary"
+                className="w-full bg-ether-violet hover:bg-ether-violet/90"
               >
                 <Plus className="mr-2 h-4 w-4" />
                 Add Beneficiary
@@ -126,7 +127,7 @@ export default function BeneficiaryManagement() {
             </CardContent>
           </Card>
         ) : (
-          <Card className="mb-8 bg-slate-800 border-slate-700">
+          <Card className="mb-8 bg-white/[0.04] border-white/[0.06]">
             <CardHeader>
               <CardTitle className="text-white">Add New Beneficiary</CardTitle>
             </CardHeader>
@@ -142,7 +143,7 @@ export default function BeneficiaryManagement() {
                     onChange={(e) =>
                       setNewBeneficiary({ ...newBeneficiary, name: e.target.value })
                     }
-                    className="bg-slate-700 border-slate-600 text-white placeholder:text-slate-500"
+                    className="bg-white/[0.04] border-white/[0.06] text-white placeholder:text-slate-500"
                   />
                 </div>
 
@@ -156,7 +157,7 @@ export default function BeneficiaryManagement() {
                     onChange={(e) =>
                       setNewBeneficiary({ ...newBeneficiary, relationship: e.target.value })
                     }
-                    className="bg-slate-700 border-slate-600 text-white placeholder:text-slate-500"
+                    className="bg-white/[0.04] border-white/[0.06] text-white placeholder:text-slate-500"
                   />
                 </div>
 
@@ -171,7 +172,7 @@ export default function BeneficiaryManagement() {
                     onChange={(e) =>
                       setNewBeneficiary({ ...newBeneficiary, email: e.target.value })
                     }
-                    className="bg-slate-700 border-slate-600 text-white placeholder:text-slate-500"
+                    className="bg-white/[0.04] border-white/[0.06] text-white placeholder:text-slate-500"
                   />
                 </div>
 
@@ -185,10 +186,10 @@ export default function BeneficiaryManagement() {
                       setNewBeneficiary({ ...newBeneficiary, accessLevel: value })
                     }
                   >
-                    <SelectTrigger className="bg-slate-700 border-slate-600 text-white">
+                    <SelectTrigger className="bg-white/[0.04] border-white/[0.06] text-white">
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent className="bg-slate-800 border-slate-700 text-white">
+                    <SelectContent className="bg-white/[0.04] border-white/[0.06] text-white">
                       <SelectItem value="full">Full Access</SelectItem>
                       <SelectItem value="restricted">Restricted Access</SelectItem>
                       <SelectItem value="legacy_only">Legacy Only (After Passing)</SelectItem>
@@ -203,7 +204,8 @@ export default function BeneficiaryManagement() {
                   <Button
                     onClick={handleAddBeneficiary}
                     disabled={createBeneficiaryMutation.isPending}
-                    className="flex-1 bg-blue-600 hover:bg-blue-700"
+                    data-ether-variant="primary"
+                    className="flex-1 bg-ether-violet hover:bg-ether-violet/90"
                   >
                     {createBeneficiaryMutation.isPending ? (
                       <>
@@ -218,7 +220,7 @@ export default function BeneficiaryManagement() {
                     variant="outline"
                     onClick={() => setIsAddingBeneficiary(false)}
                     disabled={createBeneficiaryMutation.isPending}
-                    className="border-slate-600 text-slate-300 hover:bg-slate-800 hover:text-white"
+                    className="border-white/[0.06] text-slate-300 hover:bg-white/[0.04]"
                   >
                     Cancel
                   </Button>
@@ -229,7 +231,7 @@ export default function BeneficiaryManagement() {
         )}
 
         {/* Beneficiaries List */}
-        <Card className="bg-slate-800 border-slate-700">
+        <Card className="bg-white/[0.04] border-white/[0.06]">
           <CardHeader>
             <CardTitle className="text-white">Your Beneficiaries</CardTitle>
             <CardDescription className="text-slate-400">
@@ -239,14 +241,14 @@ export default function BeneficiaryManagement() {
           <CardContent>
             {beneficiariesQuery.isLoading ? (
               <div className="flex justify-center py-8">
-                <Loader2 className="h-6 w-6 animate-spin text-blue-400" />
+                <Loader2 className="h-6 w-6 animate-spin text-ether-cyan" />
               </div>
             ) : beneficiariesQuery.data && beneficiariesQuery.data.length > 0 ? (
               <div className="space-y-4">
                 {beneficiariesQuery.data.map((beneficiary: any) => (
                   <div
                     key={beneficiary.id}
-                    className="border border-slate-700 bg-slate-900/40 rounded-lg p-4 flex items-start justify-between hover:bg-slate-900/60 transition"
+                    className="border border-white/[0.06] bg-white/[0.03] rounded-lg p-4 flex items-start justify-between hover:bg-white/[0.06] transition"
                   >
                     <div className="flex-1">
                       <div className="flex items-center gap-3 mb-2">
@@ -271,7 +273,7 @@ export default function BeneficiaryManagement() {
                         {getAccessLevelDescription(beneficiary.accessLevel)}
                       </p>
                     </div>
-                    <Button variant="ghost" size="sm" className="text-red-400 hover:text-red-300 hover:bg-slate-800">
+                    <Button variant="ghost" size="sm" className="text-ether-magenta hover:text-ether-magenta/80 hover:bg-white/[0.04]">
                       <Trash2 className="h-4 w-4" />
                     </Button>
                   </div>
@@ -286,7 +288,7 @@ export default function BeneficiaryManagement() {
                 <Button
                   onClick={() => setIsAddingBeneficiary(true)}
                   variant="outline"
-                  className="border-slate-600 text-slate-300 hover:bg-slate-800 hover:text-white"
+                  className="border-white/[0.06] text-slate-300 hover:bg-white/[0.04]"
                 >
                   Add Your First Beneficiary
                 </Button>
@@ -296,11 +298,11 @@ export default function BeneficiaryManagement() {
         </Card>
 
         {/* Legacy Mode Info */}
-        <Card className="mt-8 bg-blue-900/20 border-blue-800">
+        <Card className="mt-8 bg-ether-violet/10 border-ether-violet/20">
           <CardHeader>
-            <CardTitle className="text-blue-300">About Legacy Mode</CardTitle>
+            <CardTitle className="text-ether-violet">About Legacy Mode</CardTitle>
           </CardHeader>
-          <CardContent className="text-blue-200">
+          <CardContent className="text-white">
             <p className="mb-3">
               When you set a beneficiary to "Legacy Only," they will gain access to your Digital Mind after your passing.
               This allows your wisdom, values, and reasoning to continue guiding your loved ones.

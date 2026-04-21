@@ -38,7 +38,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
 
   if (loading || (isAuthenticated && onboardingQuery.isLoading)) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-800 flex items-center justify-center">
+      <div className="min-h-screen bg-ether-bg flex items-center justify-center">
         <div className="animate-pulse text-slate-400 text-sm">Loading...</div>
       </div>
     );

@@ -292,17 +292,23 @@ export default function MindMap() {
       n.fy = undefined;
     });
     fg.d3Force("charge")?.strength(-180);
-    // Link distance 60 gives connected nodes breathing room for labels to
-    // sit beside each node without overlapping. Tight enough to keep family
-    // clusters cohesive; loose enough that each node claims its own space.
-    fg.d3Force("link")?.distance(60);
-    // Explicit center gravity — gentle pull toward origin every tick. This is
-    // what keeps the graph cohesive over time: without it, repulsion slowly
-    // wins out after many interactions and nodes drift outward forever.
-    const xF = fg.d3Force("x") as any;
-    const yF = fg.d3Force("y") as any;
-    if (xF && typeof xF.strength === "function") xF.strength(0.08);
-    if (yF && typeof yF.strength === "function") yF.strength(0.08);
+    // Link distance 100 — longer springs so cascade energy carries further
+    // through chains when a node is dragged. Short links (60) resolved
+    // tension locally and the cascade died after 2-3 hops; 100 lets chain
+    // response propagate 4-5 hops while keeping the cluster cohesive.
+    // Strength 0.4 clamp — default d3 formula 1/min(degree) spikes to 1.0
+    // for degree-1 leaves (violent snap on release). 0.4 mellows releases
+    // and matches Obsidian's ~0.44 default.
+    fg.d3Force("link")?.distance(100).strength(0.4);
+    // REAL per-node center gravity — registers forceX/forceY that don't
+    // exist in the library's default setup (which only has 'link', 'charge',
+    // 'center'=mean-centering). Prior code did fg.d3Force("x")?.strength(k)
+    // which silently no-op'd because the named force never existed.
+    // 0.08 is gentle: at typical distance from origin (~100 canvas units)
+    // pull force per tick ≈ 100 * 0.08 * alpha = 2.4 at drag alpha 0.3.
+    // Bounds drift without collapsing the graph.
+    fg.d3Force("x", forceX(0).strength(0.08) as any);
+    fg.d3Force("y", forceY(0).strength(0.08) as any);
     fg.d3ReheatSimulation();
   }, [graphQuery.data, activeLayer]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -345,136 +351,18 @@ export default function MindMap() {
     fg.zoom(naturalFit * ZOOM_IN_MULTIPLIER, 500);
   }, []);
 
-  // ─── Drag soft-anchor architecture (BFS-weighted spring restoration) ───
+  // ─── Drag: NO custom interference ───
   //
-  // Prior approach (binary fx/fy pinning at BFS ≥ 3-hop) severed charge-force
-  // global cascade: pinned nodes cannot move under ANY force, so the N-body
-  // repulsion ripple that makes the graph feel connected dies at the 2-hop
-  // boundary. Distant nodes sat visibly stagnant during drag.
+  // Prior iterations (binary fx/fy pinning, BFS-weighted soft anchor force)
+  // all severed or dampened d3-force's native cascade. Every one of them
+  // ended up with either graph-wide drift or distant-node stagnation.
   //
-  // New architecture: every node remains un-pinned (fx/fy stays undefined).
-  // Instead we add two custom forces — forceX and forceY with per-node
-  // strength — that pull each node back toward its drag-start position. The
-  // pull strength scales with BFS distance from the dragged node:
-  //
-  //   distance 0-1: strength 0     — fully free (full link-cascade response)
-  //   distance 2:   strength 0.08  — barely pulled back, visible response
-  //   distance 3:   strength 0.25  — moderate spring, still shimmers
-  //   distance 4:   strength 0.5   — strong spring, subtle ripple allowed
-  //   distance 5+:  strength 0.85  — near-anchor, charge-driven shimmer only
-  //   ∞ (disconnected components): same as 5+
-  //
-  // Charge force reaches every node (none are fx-pinned), so global ripple
-  // is restored. Drift is bounded because soft-anchor pull grows quadratically
-  // with BFS distance.
-
-  // Adjacency index built once per data-set change. Maps nodeId → Set of
-  // 1-hop neighbor ids. Cheap (O(edges)) and memoized so the lookup during
-  // drag is O(1) per node.
-  const neighborMap = useMemo(() => {
-    const map = new Map<string, Set<string>>();
-    if (!graphQuery.data) return map;
-    for (const e of graphQuery.data.edges) {
-      const src = edgeNodeId(e.source);
-      const tgt = edgeNodeId(e.target);
-      if (!map.has(src)) map.set(src, new Set());
-      if (!map.has(tgt)) map.set(tgt, new Set());
-      map.get(src)!.add(tgt);
-      map.get(tgt)!.add(src);
-    }
-    return map;
-  }, [graphQuery.data]);
-
-  // Flag: soft-anchor forces are currently active (set on first drag tick,
-  // cleared on drag end). Guards against double-registration if handleNodeDrag
-  // fires multiple times per drag.
-  const dragAnchorActiveRef = useRef(false);
-
-  // Map BFS distance → spring strength back toward drag-start position.
-  const distanceToAnchorStrength = (d: number): number => {
-    if (d <= 1) return 0;
-    if (d === 2) return 0.08;
-    if (d === 3) return 0.25;
-    if (d === 4) return 0.5;
-    return 0.85; // 5+ hops, or Infinity (disconnected)
-  };
-
-  const handleNodeDrag = useCallback(
-    (node: any) => {
-      if (dragAnchorActiveRef.current) return;
-      const fg = graphRef.current;
-      if (!fg) return;
-
-      // BFS from dragged node to EVERY reachable node, record hop distance.
-      const distances = new Map<string, number>();
-      distances.set(node.id, 0);
-      let frontier: string[] = [node.id];
-      let depth = 0;
-      while (frontier.length > 0) {
-        depth++;
-        const nextFrontier: string[] = [];
-        for (const id of frontier) {
-          const nbrs = neighborMap.get(id);
-          if (!nbrs) continue;
-          nbrs.forEach((nid) => {
-            if (!distances.has(nid)) {
-              distances.set(nid, depth);
-              nextFrontier.push(nid);
-            }
-          });
-        }
-        frontier = nextFrontier;
-      }
-
-      // Stamp each node with its drag-start position and distance-weighted
-      // anchor strength. forceX/forceY read these per tick.
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      for (const n of filteredData.nodes as any[]) {
-        const d = distances.get(n.id) ?? Infinity;
-        n.__anchorX = n.x;
-        n.__anchorY = n.y;
-        n.__anchorStrength = distanceToAnchorStrength(d);
-      }
-
-      // Register soft-anchor forces. Accessor functions read node.__anchor*
-      // each time d3-force initializes the force — re-registering reads the
-      // fresh values we just stamped.
-      fg.d3Force(
-        "dragAnchorX",
-        forceX((n: any) => n.__anchorX ?? 0).strength(
-          (n: any) => n.__anchorStrength ?? 0
-        ) as any
-      );
-      fg.d3Force(
-        "dragAnchorY",
-        forceY((n: any) => n.__anchorY ?? 0).strength(
-          (n: any) => n.__anchorStrength ?? 0
-        ) as any
-      );
-
-      dragAnchorActiveRef.current = true;
-    },
-    [filteredData, neighborMap]
-  );
-
-  const handleNodeDragEnd = useCallback(
-    (_node: any) => {
-      if (!dragAnchorActiveRef.current) return;
-      const fg = graphRef.current;
-      if (fg) {
-        fg.d3Force("dragAnchorX", null);
-        fg.d3Force("dragAnchorY", null);
-      }
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      for (const n of filteredData.nodes as any[]) {
-        delete n.__anchorX;
-        delete n.__anchorY;
-        delete n.__anchorStrength;
-      }
-      dragAnchorActiveRef.current = false;
-    },
-    [filteredData]
-  );
+  // Matching Obsidian's pattern: the library's native drag handler already
+  // sets alphaTarget(0.3) on drag start and drops to 0 on release. Charge
+  // force reaches every node (N-body global cascade). Link force propagates
+  // spring tension through chains. That's the whole drag system — no custom
+  // forces, no pinning, no BFS. Drift is bounded by the center/x/y gravity
+  // forces registered in the physics useEffect above (NOT drag-specific).
 
   // ─── Hovered node edge set ───
   //
@@ -783,8 +671,6 @@ export default function MindMap() {
             onRenderFramePre={handleRenderFramePre}
             onNodeClick={handleNodeClick}
             onNodeHover={handleNodeHover}
-            onNodeDrag={handleNodeDrag}
-            onNodeDragEnd={handleNodeDragEnd}
             onEngineStop={handleEngineStop}
             backgroundColor="#080b14"
             width={containerSize.width}

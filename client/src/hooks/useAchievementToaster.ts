@@ -6,7 +6,6 @@ const COLOR_HEX: Record<string, string> = {
   cyan: "#3DD9FF",
   violet: "#8A7CFF",
   magenta: "#FF6FD1",
-  mint: "#8AF0C0",
 };
 
 // One-liner caller: const evaluate = useAchievementToaster(); evaluate();

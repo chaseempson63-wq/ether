@@ -130,7 +130,7 @@ export default function Dashboard() {
                   valuesCount={data.brain.valuesCount}
                 />
               </div>
-              <div className="lg:col-span-2 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-4">
+              <div className="lg:col-span-2 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-6">
                 <StatCard
                   label="Memories"
                   count={data.stats.memories.count}

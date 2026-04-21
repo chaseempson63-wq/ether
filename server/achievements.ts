@@ -7,12 +7,7 @@ import type {
   MemoryNode,
 } from "../drizzle/schema";
 
-export type AchievementColor =
-  | "gold"
-  | "cyan"
-  | "violet"
-  | "magenta"
-  | "mint";
+export type AchievementColor = "gold" | "cyan" | "violet" | "magenta";
 
 export type AchievementIconName =
   | "sun"
@@ -94,7 +89,7 @@ export const ACHIEVEMENTS: AchievementDefinition[] = [
     id: "week_one",
     name: "Week One",
     sub: "7-day streak",
-    color: "mint",
+    color: "gold",
     icon: "orbit",
     order: 50,
     threshold: (s) => s.streakDays >= 7,

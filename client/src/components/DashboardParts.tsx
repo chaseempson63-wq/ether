@@ -18,7 +18,6 @@ export const ETHER_COLOR: Record<string, string> = {
   cyan: "var(--ether-cyan)",
   violet: "var(--ether-violet)",
   magenta: "var(--ether-magenta)",
-  mint: "var(--ether-mint)",
 };
 
 const ICON_MAP: Record<string, LucideIcon> = {
@@ -114,7 +113,7 @@ export function StatCard({
     deltaWeek > 0 ? `+${deltaWeek} this week` : deltaWeek < 0 ? `${deltaWeek} this week` : "steady this week";
   return (
     <div
-      className="relative rounded-2xl border border-white/5 bg-white/[0.02] p-5 overflow-hidden"
+      className="relative rounded-2xl border border-white/5 bg-white/[0.02] p-6 overflow-hidden"
       style={{ boxShadow: `0 0 0 1px rgba(255,255,255,0.02), inset 0 1px 0 rgba(255,255,255,0.03)` }}
     >
       <div
@@ -151,7 +150,7 @@ export function StreakCard({
   week: { label: string; active: boolean; today?: boolean }[];
 }) {
   return (
-    <div className="relative rounded-2xl border border-white/5 bg-white/[0.02] p-5 overflow-hidden">
+    <div className="relative rounded-2xl border border-white/5 bg-white/[0.02] p-6 overflow-hidden">
       <div
         aria-hidden
         className="absolute inset-0 opacity-[0.06] pointer-events-none"
@@ -183,7 +182,7 @@ export function StreakCard({
                   : "rgba(255,255,255,0.05)",
               }}
             />
-            <div className="text-[10px] text-slate-500">{d.label}</div>
+            <div className="text-[11px] text-slate-500">{d.label}</div>
           </div>
         ))}
       </div>
@@ -314,7 +313,7 @@ export function BrainRingsViz({
 
       {/* Center readouts — coherence is the hero metric, dominant in type. */}
       <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none z-10">
-        <div className="text-[10px] tracking-widest text-slate-400 uppercase mb-1">
+        <div className="text-[11px] tracking-widest text-slate-400 uppercase mb-1">
           Coherence
         </div>
         <div className="text-5xl font-[Space_Grotesk,system-ui,sans-serif] font-semibold tracking-tight text-white tabular-nums leading-none">
@@ -389,7 +388,7 @@ export function MemoryStreamRow({
     >
       <div className="flex items-center justify-between mb-2">
         <span
-          className="text-[10px] tracking-[0.18em] font-medium uppercase px-2 py-0.5 rounded"
+          className="text-[11px] tracking-[0.18em] font-medium uppercase px-2 py-0.5 rounded"
           style={{
             color,
             background: `color-mix(in srgb, ${color} 12%, transparent)`,
@@ -397,7 +396,7 @@ export function MemoryStreamRow({
         >
           {tag}
         </span>
-        <span className="text-[10px] text-slate-500">{meta}</span>
+        <span className="text-[11px] text-slate-500">{meta}</span>
       </div>
       <p className="text-sm text-slate-200 leading-relaxed line-clamp-3">
         {text}
@@ -448,10 +447,10 @@ export function AchievementMedal({
           style={{ color: locked ? "rgba(255,255,255,0.3)" : hex }}
         />
       </div>
-      <div className="mt-3 text-[11px] font-medium text-white leading-tight">
+      <div className="mt-3 text-xs font-medium text-white leading-tight">
         {name}
       </div>
-      <div className="text-[10px] text-slate-500 mt-0.5">{sub}</div>
+      <div className="text-[11px] text-slate-500 mt-0.5">{sub}</div>
     </div>
   );
 }
@@ -483,7 +482,7 @@ export function GrowthChart({
       .join(" ");
   };
   return (
-    <div className="relative rounded-2xl border border-white/5 bg-white/[0.02] p-5 overflow-hidden">
+    <div className="relative rounded-2xl border border-white/5 bg-white/[0.02] p-6 overflow-hidden">
       <svg
         viewBox={`0 0 ${width} ${height}`}
         width="100%"
@@ -516,7 +515,7 @@ export function GrowthChart({
           </g>
         ))}
       </svg>
-      <div className="flex items-center justify-between mt-3 text-[10px] text-slate-500 tabular-nums">
+      <div className="flex items-center justify-between mt-3 text-[11px] text-slate-500 tabular-nums">
         {xAxis.map((label, i) => (
           <span key={i}>{label}</span>
         ))}

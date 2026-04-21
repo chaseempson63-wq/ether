@@ -195,20 +195,20 @@ export default function DailyReflection() {
 
   if (!user) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-800">
+      <div className="flex items-center justify-center min-h-screen bg-ether-bg">
         <p className="text-slate-400">Please log in to access Daily Reflection</p>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-800 p-6">
+    <div className="min-h-screen bg-ether-bg p-6">
       <div className="max-w-4xl mx-auto">
         <Button
           variant="ghost"
           size="sm"
           onClick={() => setLocation("/")}
-          className="mb-4 text-slate-400 hover:text-white hover:bg-slate-800"
+          className="mb-4 text-slate-400 hover:text-white hover:bg-white/[0.04]"
         >
           <ArrowLeft className="h-4 w-4 mr-2" />
           Home
@@ -220,14 +220,14 @@ export default function DailyReflection() {
         </div>
 
         <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="w-full">
-          <TabsList className="grid w-full grid-cols-3 bg-slate-800 border border-slate-700">
-            <TabsTrigger value="memory" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white text-slate-300">Memory</TabsTrigger>
-            <TabsTrigger value="reasoning" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white text-slate-300">Reasoning</TabsTrigger>
-            <TabsTrigger value="values" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white text-slate-300">Values</TabsTrigger>
+          <TabsList className="grid w-full grid-cols-3 bg-white/[0.04] border border-white/[0.06]">
+            <TabsTrigger value="memory" className="data-[state=active]:bg-ether-violet data-[state=active]:text-white text-slate-400">Memory</TabsTrigger>
+            <TabsTrigger value="reasoning" className="data-[state=active]:bg-ether-violet data-[state=active]:text-white text-slate-400">Reasoning</TabsTrigger>
+            <TabsTrigger value="values" className="data-[state=active]:bg-ether-violet data-[state=active]:text-white text-slate-400">Values</TabsTrigger>
           </TabsList>
 
           <TabsContent value="memory" className="space-y-6">
-            <Card className="bg-slate-800 border-slate-700">
+            <Card className="bg-white/[0.04] border-white/[0.06]">
               <CardHeader>
                 <CardTitle className="text-white">Capture a Memory</CardTitle>
                 <CardDescription className="text-slate-400">Record a journal entry, voice memo, or important life event</CardDescription>
@@ -236,10 +236,10 @@ export default function DailyReflection() {
                 <div className="space-y-1.5">
                   <Label htmlFor="source-type" className="text-slate-300">Memory Type</Label>
                   <Select value={sourceType} onValueChange={(v) => setSourceType(v as any)}>
-                    <SelectTrigger id="source-type" className="bg-slate-700 border-slate-600 text-white">
+                    <SelectTrigger id="source-type" className="bg-white/[0.04] border-white/[0.06] text-white">
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent className="bg-slate-800 border-slate-700 text-white">
+                    <SelectContent className="bg-white/[0.04] border-white/[0.06] text-white">
                       <SelectItem value="journal">Journal Entry</SelectItem>
                       <SelectItem value="voice_memo">Voice Memo</SelectItem>
                       <SelectItem value="passive_import">Imported Content</SelectItem>
@@ -256,7 +256,7 @@ export default function DailyReflection() {
                       placeholder="Write down your thoughts, experiences, or important moments..."
                       value={memoryContent}
                       onChange={(e) => setMemoryContent(e.target.value)}
-                      className="min-h-[150px] pr-12 bg-slate-700 border-slate-600 text-white placeholder:text-slate-500"
+                      className="min-h-[150px] pr-12 bg-white/[0.04] border-white/[0.06] text-white placeholder:text-slate-500"
                     />
                     <VoiceInput
                       className="absolute bottom-2 right-2"
@@ -274,7 +274,7 @@ export default function DailyReflection() {
                     placeholder="e.g., family, career, growth"
                     value={memoryTags}
                     onChange={(e) => setMemoryTags(e.target.value)}
-                    className="bg-slate-700 border-slate-600 text-white placeholder:text-slate-500"
+                    className="bg-white/[0.04] border-white/[0.06] text-white placeholder:text-slate-500"
                   />
                 </div>
 
@@ -294,7 +294,7 @@ export default function DailyReflection() {
                     variant="outline"
                     size="sm"
                     onClick={() => fileInputRef.current?.click()}
-                    className="border-slate-600 text-slate-300 hover:bg-slate-700 hover:text-white"
+                    className="border-white/[0.06] text-slate-300 hover:bg-white/[0.04]"
                   >
                     <ImagePlus className="mr-2 h-4 w-4" />
                     Add Photo
@@ -308,12 +308,12 @@ export default function DailyReflection() {
                           <img
                             src={src}
                             alt={`Attachment ${i + 1}`}
-                            className="h-20 w-20 rounded-lg object-cover border border-slate-600"
+                            className="h-20 w-20 rounded-lg object-cover border border-white/[0.06]"
                           />
                           <button
                             type="button"
                             onClick={() => removeImage(i)}
-                            className="absolute -top-2 -right-2 bg-red-600 hover:bg-red-500 rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
+                            className="absolute -top-2 -right-2 bg-destructive hover:bg-destructive/90 rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
                           >
                             <X className="h-3 w-3 text-white" />
                           </button>
@@ -326,7 +326,8 @@ export default function DailyReflection() {
                 <Button
                   onClick={handleMemorySubmit}
                   disabled={createMemoryMutation.isPending || isUploading}
-                  className="w-full bg-blue-600 hover:bg-blue-700"
+                  data-ether-variant="primary"
+                  className="w-full bg-ether-violet hover:bg-ether-violet/90"
                 >
                   {createMemoryMutation.isPending || isUploading ? (
                     <>
@@ -344,7 +345,7 @@ export default function DailyReflection() {
           </TabsContent>
 
           <TabsContent value="reasoning" className="space-y-6">
-            <Card className="bg-slate-800 border-slate-700">
+            <Card className="bg-white/[0.04] border-white/[0.06]">
               <CardHeader>
                 <CardTitle className="text-white">Log a Decision</CardTitle>
                 <CardDescription className="text-slate-400">Record a major decision and your reasoning behind it</CardDescription>
@@ -357,7 +358,7 @@ export default function DailyReflection() {
                     placeholder="Describe the decision you made..."
                     value={decision}
                     onChange={(e) => setDecision(e.target.value)}
-                    className="bg-slate-700 border-slate-600 text-white placeholder:text-slate-500"
+                    className="bg-white/[0.04] border-white/[0.06] text-white placeholder:text-slate-500"
                   />
                 </div>
 
@@ -369,7 +370,7 @@ export default function DailyReflection() {
                       placeholder="Explain your reasoning, values, and thought process..."
                       value={logicWhy}
                       onChange={(e) => setLogicWhy(e.target.value)}
-                      className="min-h-[150px] pr-12 bg-slate-700 border-slate-600 text-white placeholder:text-slate-500"
+                      className="min-h-[150px] pr-12 bg-white/[0.04] border-white/[0.06] text-white placeholder:text-slate-500"
                     />
                     <VoiceInput
                       className="absolute bottom-2 right-2"
@@ -388,7 +389,7 @@ export default function DailyReflection() {
                       placeholder="How did this decision turn out?"
                       value={outcome}
                       onChange={(e) => setOutcome(e.target.value)}
-                      className="min-h-[100px] pr-12 bg-slate-700 border-slate-600 text-white placeholder:text-slate-500"
+                      className="min-h-[100px] pr-12 bg-white/[0.04] border-white/[0.06] text-white placeholder:text-slate-500"
                     />
                     <VoiceInput
                       className="absolute bottom-2 right-2"
@@ -406,14 +407,15 @@ export default function DailyReflection() {
                     placeholder="e.g., risk, independence, growth"
                     value={reasoningTags}
                     onChange={(e) => setReasoningTags(e.target.value)}
-                    className="bg-slate-700 border-slate-600 text-white placeholder:text-slate-500"
+                    className="bg-white/[0.04] border-white/[0.06] text-white placeholder:text-slate-500"
                   />
                 </div>
 
                 <Button
                   onClick={handleReasoningSubmit}
                   disabled={createReasoningMutation.isPending}
-                  className="w-full bg-blue-600 hover:bg-blue-700"
+                  data-ether-variant="primary"
+                  className="w-full bg-ether-violet hover:bg-ether-violet/90"
                 >
                   {createReasoningMutation.isPending ? (
                     <>
@@ -429,7 +431,7 @@ export default function DailyReflection() {
           </TabsContent>
 
           <TabsContent value="values" className="space-y-6">
-            <Card className="bg-slate-800 border-slate-700">
+            <Card className="bg-white/[0.04] border-white/[0.06]">
               <CardHeader>
                 <CardTitle className="text-white">Define a Core Value</CardTitle>
                 <CardDescription className="text-slate-400">What principles are non-negotiable for you?</CardDescription>
@@ -442,7 +444,7 @@ export default function DailyReflection() {
                     placeholder="e.g., 'Trust only yourself' or 'Family comes first'"
                     value={valueStatement}
                     onChange={(e) => setValueStatement(e.target.value)}
-                    className="bg-slate-700 border-slate-600 text-white placeholder:text-slate-500"
+                    className="bg-white/[0.04] border-white/[0.06] text-white placeholder:text-slate-500"
                   />
                 </div>
 
@@ -454,7 +456,7 @@ export default function DailyReflection() {
                       placeholder="Explain the context and importance of this value..."
                       value={beliefContext}
                       onChange={(e) => setBeliefContext(e.target.value)}
-                      className="min-h-[120px] pr-12 bg-slate-700 border-slate-600 text-white placeholder:text-slate-500"
+                      className="min-h-[120px] pr-12 bg-white/[0.04] border-white/[0.06] text-white placeholder:text-slate-500"
                     />
                     <VoiceInput
                       className="absolute bottom-2 right-2"
@@ -468,10 +470,10 @@ export default function DailyReflection() {
                 <div className="space-y-1.5">
                   <Label htmlFor="priority" className="text-slate-300">Priority Level</Label>
                   <Select value={priority} onValueChange={setPriority}>
-                    <SelectTrigger id="priority" className="bg-slate-700 border-slate-600 text-white">
+                    <SelectTrigger id="priority" className="bg-white/[0.04] border-white/[0.06] text-white">
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent className="bg-slate-800 border-slate-700 text-white">
+                    <SelectContent className="bg-white/[0.04] border-white/[0.06] text-white">
                       <SelectItem value="1">Critical (1)</SelectItem>
                       <SelectItem value="2">Very Important (2)</SelectItem>
                       <SelectItem value="3">Important (3)</SelectItem>
@@ -484,7 +486,8 @@ export default function DailyReflection() {
                 <Button
                   onClick={handleValueSubmit}
                   disabled={createValueMutation.isPending}
-                  className="w-full bg-blue-600 hover:bg-blue-700"
+                  data-ether-variant="primary"
+                  className="w-full bg-ether-violet hover:bg-ether-violet/90"
                 >
                   {createValueMutation.isPending ? (
                     <>

@@ -54,7 +54,7 @@ function getDepthLevel(len: number) {
   if (len >= 80) return { pct: 75, color: "bg-green-500", label: "Great depth" };
   if (len >= 20) return { pct: 45, color: "bg-amber-400", label: "Good start" };
   if (len > 0) return { pct: 20, color: "bg-red-400", label: "Keep going..." };
-  return { pct: 0, color: "bg-slate-700", label: "" };
+  return { pct: 0, color: "bg-white/[0.04]", label: "" };
 }
 
 function DepthMeter({ text }: { text: string }) {
@@ -65,7 +65,7 @@ function DepthMeter({ text }: { text: string }) {
 
   return (
     <div className="mt-3 space-y-1">
-      <div className="h-1.5 w-full bg-slate-800 rounded-full overflow-hidden">
+      <div className="h-1.5 w-full bg-white/[0.04] rounded-full overflow-hidden">
         <div
           className={`h-full rounded-full transition-all duration-300 ease-out ${color}`}
           style={{ width: `${pct}%` }}
@@ -199,7 +199,7 @@ export default function Onboarding() {
   const progressPct = phase === "steps" ? ((currentStep + 1) / STEPS.length) * 100 : 0;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-800 flex items-center justify-center p-6">
+    <div className="min-h-screen bg-ether-bg flex items-center justify-center p-6">
       <div
         className={`w-full max-w-2xl transition-all duration-300 ease-in-out ${
           fadeIn ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
@@ -214,21 +214,21 @@ export default function Onboarding() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <button
                 onClick={() => handleIntentChoice("build")}
-                className="group relative bg-slate-800 border border-slate-700 rounded-2xl p-8 text-left hover:border-blue-500/60 hover:bg-slate-800/80 transition-all duration-200"
+                className="group relative bg-white/[0.04] border border-white/[0.06] rounded-2xl p-8 text-left hover:border-ether-violet/60 hover:bg-white/[0.06] transition-all duration-200"
               >
                 <div className="mb-4">
-                  <Brain className="h-10 w-10 text-blue-400 group-hover:text-blue-300 transition-colors" />
+                  <Brain className="h-10 w-10 text-ether-cyan group-hover:text-ether-cyan/80 transition-colors" />
                 </div>
                 <h2 className="text-xl font-semibold text-white mb-2">Build my digital mind</h2>
                 <p className="text-slate-400 text-sm">
                   Answer a few questions so your AI persona understands who you are from the start.
                 </p>
-                <div className="absolute inset-0 rounded-2xl border-2 border-transparent group-hover:border-blue-500/30 transition-colors pointer-events-none" />
+                <div className="absolute inset-0 rounded-2xl border-2 border-transparent group-hover:border-ether-violet/30 transition-colors pointer-events-none" />
               </button>
 
               <button
                 onClick={() => handleIntentChoice("capture")}
-                className="group relative bg-slate-800 border border-slate-700 rounded-2xl p-8 text-left hover:border-slate-500/60 hover:bg-slate-800/80 transition-all duration-200"
+                className="group relative bg-white/[0.04] border border-white/[0.06] rounded-2xl p-8 text-left hover:border-white/20 hover:bg-white/[0.06] transition-all duration-200"
               >
                 <div className="mb-4">
                   <Sparkles className="h-10 w-10 text-slate-400 group-hover:text-slate-300 transition-colors" />
@@ -258,7 +258,7 @@ export default function Onboarding() {
               </div>
               <Progress
                 value={progressPct}
-                className="h-1.5 bg-slate-800"
+                className="h-1.5 bg-white/[0.04]"
               />
             </div>
 
@@ -276,7 +276,7 @@ export default function Onboarding() {
                   onChange={(e) => updateAnswer(e.target.value)}
                   onKeyDown={handleKeyDown}
                   placeholder={STEPS[currentStep].placeholder}
-                  className="bg-slate-800 border-slate-700 text-white text-lg py-6 px-4 placeholder:text-slate-500 focus-visible:border-blue-500 focus-visible:ring-blue-500/20"
+                  className="bg-white/[0.04] border-white/[0.06] text-white text-lg py-6 px-4 placeholder:text-slate-500 focus-visible:border-ether-violet focus-visible:ring-ether-violet/20"
                   disabled={isSubmitting}
                   autoFocus
                 />
@@ -291,7 +291,7 @@ export default function Onboarding() {
                   value={answers[currentStep]}
                   onChange={(e) => updateAnswer(e.target.value)}
                   placeholder={STEPS[currentStep].placeholder}
-                  className="bg-slate-800 border-slate-700 text-white text-lg py-4 px-4 min-h-[140px] placeholder:text-slate-500 focus-visible:border-blue-500 focus-visible:ring-blue-500/20 resize-none"
+                  className="bg-white/[0.04] border-white/[0.06] text-white text-lg py-4 px-4 min-h-[140px] placeholder:text-slate-500 focus-visible:border-ether-violet focus-visible:ring-ether-violet/20 resize-none"
                   disabled={isSubmitting}
                   autoFocus
                 />
@@ -307,8 +307,8 @@ export default function Onboarding() {
                     onClick={() => selectVoiceStyle(style.value)}
                     className={`text-left rounded-xl p-4 border transition-all duration-200 ${
                       answers[currentStep] === style.value
-                        ? "bg-blue-600/20 border-blue-500 ring-1 ring-blue-500/30"
-                        : "bg-slate-800 border-slate-700 hover:border-slate-600"
+                        ? "bg-ether-violet/20 border-ether-violet ring-1 ring-ether-violet/30"
+                        : "bg-white/[0.04] border-white/[0.06] hover:border-white/20"
                     }`}
                   >
                     <p className="font-medium text-white text-sm">{style.label}</p>
@@ -330,7 +330,8 @@ export default function Onboarding() {
               <Button
                 onClick={handleStepSubmit}
                 disabled={!answers[currentStep]?.trim() || isSubmitting}
-                className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-5 text-base disabled:opacity-40"
+                data-ether-variant="primary"
+                className="bg-ether-violet hover:bg-ether-violet/90 text-white px-8 py-5 text-base disabled:opacity-40"
               >
                 {isSubmitting ? (
                   <Loader2 className="h-4 w-4 animate-spin mr-2" />
@@ -347,8 +348,8 @@ export default function Onboarding() {
         {phase === "companion" && (
           <div className="text-center py-12">
             <div className="mb-8 relative inline-block">
-              <div className="h-20 w-20 rounded-full bg-blue-600/20 flex items-center justify-center mx-auto animate-pulse">
-                <Sparkles className="h-10 w-10 text-blue-400" />
+              <div className="h-20 w-20 rounded-full bg-ether-violet/20 flex items-center justify-center mx-auto animate-pulse">
+                <Sparkles className="h-10 w-10 text-ether-cyan" />
               </div>
             </div>
             <h2 className="text-3xl font-bold text-white mb-4">I see you.</h2>
@@ -360,7 +361,8 @@ export default function Onboarding() {
             </p>
             <Button
               onClick={handleCompanionContinue}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-5 text-base"
+              data-ether-variant="primary"
+              className="bg-ether-violet hover:bg-ether-violet/90 text-white px-8 py-5 text-base"
             >
               One last thing <ArrowRight className="h-4 w-4 ml-2" />
             </Button>
@@ -376,8 +378,8 @@ export default function Onboarding() {
             {/* Glassmorphism profile card */}
             <div className="relative mx-auto max-w-md">
               {/* Glow effect */}
-              <div className="absolute -inset-px rounded-2xl bg-gradient-to-br from-blue-500/30 via-blue-600/10 to-transparent blur-sm" />
-              <div className="relative bg-slate-800/70 backdrop-blur-xl border border-slate-700/60 rounded-2xl p-8 shadow-2xl shadow-blue-950/20">
+              <div className="absolute -inset-px rounded-2xl bg-gradient-to-br from-ether-violet/30 via-ether-violet/10 to-transparent blur-sm" />
+              <div className="relative bg-white/[0.06] backdrop-blur-xl border border-white/[0.06] rounded-2xl p-8 shadow-2xl shadow-black/20">
                 {/* Name */}
                 <h3 className="text-3xl font-bold text-white mb-1">
                   {answers[0] || "You"}
@@ -387,28 +389,28 @@ export default function Onboarding() {
                 <div className="mt-6 space-y-4 text-left">
                   {answers[1]?.trim() && (
                     <div className="flex items-start gap-3">
-                      <MapPin className="h-4 w-4 text-blue-400 mt-0.5 flex-shrink-0" />
+                      <MapPin className="h-4 w-4 text-ether-cyan mt-0.5 flex-shrink-0" />
                       <span className="text-slate-300 text-sm">{answers[1]}</span>
                     </div>
                   )}
                   {answers[2]?.trim() && (
                     <div className="flex items-start gap-3">
-                      <Briefcase className="h-4 w-4 text-blue-400 mt-0.5 flex-shrink-0" />
+                      <Briefcase className="h-4 w-4 text-ether-cyan mt-0.5 flex-shrink-0" />
                       <span className="text-slate-300 text-sm">{answers[2]}</span>
                     </div>
                   )}
                   {answers[4]?.trim() && (
                     <div className="flex items-start gap-3">
-                      <Compass className="h-4 w-4 text-blue-400 mt-0.5 flex-shrink-0" />
+                      <Compass className="h-4 w-4 text-ether-cyan mt-0.5 flex-shrink-0" />
                       <span className="text-slate-300 text-sm leading-relaxed">{answers[4]}</span>
                     </div>
                   )}
                 </div>
 
                 {/* Voice badge + stat */}
-                <div className="mt-6 pt-5 border-t border-slate-700/50 flex items-center justify-between">
+                <div className="mt-6 pt-5 border-t border-white/[0.06] flex items-center justify-between">
                   {voiceLabel && (
-                    <span className="inline-flex items-center gap-1.5 text-xs font-medium text-blue-300 bg-blue-500/10 border border-blue-500/20 rounded-full px-3 py-1">
+                    <span className="inline-flex items-center gap-1.5 text-xs font-medium text-ether-violet bg-ether-violet/10 border border-ether-violet/20 rounded-full px-3 py-1">
                       <Zap className="h-3 w-3" />
                       {voiceLabel}
                     </span>
@@ -431,7 +433,8 @@ export default function Onboarding() {
               <Button
                 onClick={() => handleRevealCTA("/halliday")}
                 disabled={completeOnboarding.isPending}
-                className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-5 text-base w-full sm:w-auto"
+                data-ether-variant="primary"
+                className="bg-ether-violet hover:bg-ether-violet/90 text-white px-8 py-5 text-base w-full sm:w-auto"
               >
                 {completeOnboarding.isPending ? (
                   <Loader2 className="h-4 w-4 animate-spin mr-2" />
@@ -444,7 +447,7 @@ export default function Onboarding() {
                 onClick={() => handleRevealCTA("/quick")}
                 disabled={completeOnboarding.isPending}
                 variant="outline"
-                className="border-slate-600 text-slate-300 hover:bg-slate-800 hover:text-white px-8 py-5 text-base w-full sm:w-auto"
+                className="border-white/[0.06] text-slate-300 hover:bg-white/[0.04] px-8 py-5 text-base w-full sm:w-auto"
               >
                 <Sparkles className="h-4 w-4 mr-2" />
                 Start Capturing

@@ -34,7 +34,7 @@ const LAYER_LABELS: Record<string, string> = {
 
 const STATUS_STYLES: Record<string, { bg: string; text: string; label: string }> = {
   locked: { bg: "rgba(255,255,255,0.03)", text: "#475569", label: "LOCKED" },
-  in_progress: { bg: "rgba(59,130,246,0.08)", text: "#3b82f6", label: "IN PROGRESS" },
+  in_progress: { bg: "rgba(138,124,255,0.08)", text: "var(--ether-violet)", label: "IN PROGRESS" },
   completed: { bg: "rgba(16,185,129,0.08)", text: "#10b981", label: "COMPLETED" },
 };
 
@@ -214,7 +214,7 @@ export default function InterviewMode() {
   // ─── Loading ───
   if (statusQuery.isLoading) {
     return (
-      <div className="min-h-screen bg-[#080b14] flex items-center justify-center">
+      <div className="min-h-screen bg-ether-bg flex items-center justify-center">
         <Loader2 className="h-6 w-6 animate-spin text-slate-500" />
       </div>
     );
@@ -225,9 +225,9 @@ export default function InterviewMode() {
   // ─── Celebration overlay ───
   if (celebrating) {
     return (
-      <div className="min-h-screen bg-[#080b14] flex items-center justify-center font-sora">
+      <div className="min-h-screen bg-ether-bg flex items-center justify-center font-sora">
         <div className="text-center animate-float-in">
-          <Sparkles className="h-16 w-16 text-blue-400 mx-auto mb-4" />
+          <Sparkles className="h-16 w-16 text-ether-cyan mx-auto mb-4" />
           <h2 className="text-3xl font-bold text-white mb-2">
             Level {activeLevel} Complete
           </h2>
@@ -250,19 +250,16 @@ export default function InterviewMode() {
 
     if (questionsQuery.isLoading) {
       return (
-        <div className="min-h-screen bg-[#080b14] flex items-center justify-center">
+        <div className="min-h-screen bg-ether-bg flex items-center justify-center">
           <Loader2 className="h-6 w-6 animate-spin text-slate-500" />
         </div>
       );
     }
 
     return (
-      <div className="min-h-screen bg-[#080b14] text-white flex flex-col font-sora">
+      <div className="min-h-screen bg-ether-bg text-white flex flex-col font-sora">
         {/* Header */}
-        <header
-          className="flex items-center justify-between px-5 py-2.5 z-20 border-b border-white/[0.04]"
-          style={{ background: "rgba(8,11,20,0.9)", backdropFilter: "blur(12px)" }}
-        >
+        <header className="flex items-center justify-between px-5 py-2.5 z-20 border-b border-white/[0.04] bg-ether-bg/90 backdrop-blur-md">
           <div className="flex items-center gap-4">
             <button
               onClick={() => setActiveLevel(null)}
@@ -295,7 +292,7 @@ export default function InterviewMode() {
                     style={{
                       backgroundColor:
                         i === currentIndex
-                          ? "#3b82f6"
+                          ? "var(--ether-violet)"
                           : qItem.answer != null
                             ? "#10b981"
                             : "rgba(255,255,255,0.1)",
@@ -350,7 +347,7 @@ export default function InterviewMode() {
                       }}
                       placeholder={shouldAnimate ? animatedPlaceholder : "Type or speak your answer..."}
                       rows={5}
-                      className="w-full bg-white/[0.03] border border-white/[0.06] rounded-lg px-4 py-3 pr-12 text-[13px] text-white placeholder:text-slate-600 resize-none focus:outline-none focus:border-blue-500/30 transition-colors"
+                      className="w-full bg-white/[0.03] border border-white/[0.06] rounded-lg px-4 py-3 pr-12 text-[13px] text-white placeholder:text-slate-600 resize-none focus:outline-none focus:border-ether-violet/30 transition-colors"
                       autoFocus
                     />
                     <VoiceInput
@@ -366,7 +363,8 @@ export default function InterviewMode() {
                     <button
                       onClick={handleSubmit}
                       disabled={!answerText.trim() || answerMutation.isPending}
-                      className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-500 disabled:opacity-30 disabled:cursor-not-allowed text-[12px] font-semibold text-white rounded-md transition-colors"
+                      data-ether-variant="primary"
+                      className="flex items-center gap-2 px-5 py-2.5 bg-ether-violet hover:bg-ether-violet/90 disabled:opacity-30 disabled:cursor-not-allowed text-[12px] font-semibold text-white rounded-md transition-colors"
                     >
                       {answerMutation.isPending ? (
                         <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -407,7 +405,7 @@ export default function InterviewMode() {
 
   // ─── Level progression view (default) ───
   return (
-    <div className="min-h-screen bg-[#080b14] text-white font-sora p-6">
+    <div className="min-h-screen bg-ether-bg text-white font-sora p-6">
       <div className="max-w-2xl mx-auto">
         {/* Header */}
         <div className="flex items-center gap-6 mb-10">
@@ -449,7 +447,7 @@ export default function InterviewMode() {
                 style={{
                   background: style.bg,
                   border: isActive
-                    ? "1px solid rgba(59,130,246,0.3)"
+                    ? "1px solid rgba(138,124,255,0.3)"
                     : isComplete
                       ? "1px solid rgba(16,185,129,0.2)"
                       : "1px solid rgba(255,255,255,0.04)",
@@ -459,7 +457,7 @@ export default function InterviewMode() {
                   <div className="flex items-center gap-3">
                     {isLocked && <Lock className="h-4 w-4 text-slate-600" />}
                     {isComplete && <CheckCircle2 className="h-4 w-4 text-emerald-500" />}
-                    {isActive && <div className="w-2 h-2 rounded-full bg-blue-500 mt-1" />}
+                    {isActive && <div className="w-2 h-2 rounded-full bg-ether-violet mt-1" />}
                     <div>
                       <h3 className="text-[15px] font-medium text-white">
                         Level {level.level} — {level.title}
@@ -493,7 +491,7 @@ export default function InterviewMode() {
                         className="h-full rounded-full transition-all duration-500"
                         style={{
                           width: `${Math.round(progress * 100)}%`,
-                          backgroundColor: isComplete ? "#10b981" : "#3b82f6",
+                          backgroundColor: isComplete ? "#10b981" : "var(--ether-violet)",
                         }}
                       />
                     </div>

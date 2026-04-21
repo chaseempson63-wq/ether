@@ -35,8 +35,8 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-800 flex items-center justify-center p-6">
-      <Card className="w-full max-w-md bg-slate-800 border-slate-700">
+    <div className="min-h-screen bg-ether-bg flex items-center justify-center p-6">
+      <Card className="w-full max-w-md bg-white/[0.04] border-white/[0.06]">
         <CardHeader className="text-center">
           <CardTitle className="text-3xl font-bold text-white">Ether</CardTitle>
           <CardDescription className="text-slate-400">
@@ -46,7 +46,7 @@ export default function Login() {
         <CardContent className="p-12">
           <form onSubmit={handleSubmit} className="space-y-5">
             {error && (
-              <div className="bg-red-900/30 border border-red-800 text-red-300 text-sm rounded-lg p-3">
+              <div className="bg-ether-magenta/10 border border-ether-magenta/30 text-ether-magenta text-sm rounded-lg p-3">
                 {error}
               </div>
             )}
@@ -60,7 +60,7 @@ export default function Login() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                className="bg-slate-700 border-slate-600 text-white placeholder:text-slate-500"
+                className="bg-white/[0.04] border-white/[0.06] text-white placeholder:text-slate-500"
               />
             </div>
 
@@ -73,13 +73,14 @@ export default function Login() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
-                className="bg-slate-700 border-slate-600 text-white placeholder:text-slate-500"
+                className="bg-white/[0.04] border-white/[0.06] text-white placeholder:text-slate-500"
               />
             </div>
 
             <Button
               type="submit"
-              className="w-full bg-blue-600 hover:bg-blue-700"
+              data-ether-variant="primary"
+              className="w-full bg-ether-violet hover:bg-ether-violet/90 text-white"
               disabled={isLoading}
             >
               {isLoading ? (
@@ -94,7 +95,7 @@ export default function Login() {
               <button
                 type="button"
                 onClick={() => setLocation("/register")}
-                className="text-blue-400 hover:text-blue-300 underline"
+                className="text-ether-violet hover:text-ether-violet/80 underline"
               >
                 Register
               </button>

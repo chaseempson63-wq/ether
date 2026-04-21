@@ -1,6 +1,4 @@
 import { useAuth } from "@/_core/hooks/useAuth";
-import { Button } from "@/components/ui/button";
-import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { trpc } from "@/lib/trpc";
 import { useLocation } from "wouter";
 import {
@@ -15,8 +13,17 @@ import {
   LogOut,
   type LucideIcon,
 } from "lucide-react";
+import {
+  EtherPageFrame,
+  EtherButton,
+  BreathingCore,
+  StatusPill,
+} from "@/components/ether";
+import { cn } from "@/lib/utils";
 
-// ─── Nav items with stable card IDs matching Venice response ───
+// Each destination belongs to a canonical stat family. Icon + highlight
+// colors pull from that family — never a flat "blue = interactive".
+type NavTone = "cyan" | "violet" | "magenta" | "gold";
 
 interface NavItem {
   cardId: string;
@@ -24,29 +31,95 @@ interface NavItem {
   description: string;
   href: string;
   icon: LucideIcon;
+  tone: NavTone;
   locked?: boolean;
 }
 
-const navItems: NavItem[] = [
-  { cardId: "mind_map", label: "Mind Map", description: "Explore your identity graph", href: "/mind-map", icon: Network },
-  { cardId: "dashboard", label: "Dashboard", description: "View your memories, values, and decisions", href: "/dashboard", icon: LayoutDashboard },
-  { cardId: "halliday_interview", label: "Halliday Interview", description: "Deep identity questions across 5 layers", href: "/halliday", icon: Brain },
-  { cardId: "persona_chat", label: "Persona Chat", description: "Talk to your digital mind", href: "/chat", icon: MessageCircle },
-  { cardId: "quick_memory", label: "Quick Memory", description: "Capture a thought right now", href: "/quick", icon: Zap },
-  { cardId: "daily_reflection", label: "Daily Reflection", description: "Journal and reflect on your day", href: "/reflection", icon: Calendar },
-  { cardId: "interview_mode", label: "Interview Mode", description: "Progressive identity interview", href: "/interview", icon: Mic },
-  { cardId: "beneficiaries", label: "Beneficiaries", description: "Manage who can access your mind", href: "/beneficiaries", icon: Users, locked: true },
+const NAV: NavItem[] = [
+  {
+    cardId: "mind_map",
+    label: "Mind Map",
+    description: "The shape your thinking makes.",
+    href: "/mind-map",
+    icon: Network,
+    tone: "magenta",
+  },
+  {
+    cardId: "dashboard",
+    label: "Dashboard",
+    description: "The weight of what you've built.",
+    href: "/dashboard",
+    icon: LayoutDashboard,
+    tone: "cyan",
+  },
+  {
+    cardId: "halliday_interview",
+    label: "Halliday Interview",
+    description: "The layers that make you.",
+    href: "/halliday",
+    icon: Brain,
+    tone: "violet",
+  },
+  {
+    cardId: "persona_chat",
+    label: "Persona Chat",
+    description: "A conversation with yourself.",
+    href: "/chat",
+    icon: MessageCircle,
+    tone: "violet",
+  },
+  {
+    cardId: "quick_memory",
+    label: "Quick Memory",
+    description: "One thought, before it's gone.",
+    href: "/quick",
+    icon: Zap,
+    tone: "cyan",
+  },
+  {
+    cardId: "daily_reflection",
+    label: "Daily Reflection",
+    description: "Today, through your own eyes.",
+    href: "/reflection",
+    icon: Calendar,
+    tone: "cyan",
+  },
+  {
+    cardId: "interview_mode",
+    label: "Interview Mode",
+    description: "The slow work of self-knowledge.",
+    href: "/interview",
+    icon: Mic,
+    tone: "violet",
+  },
+  {
+    cardId: "beneficiaries",
+    label: "Beneficiaries",
+    description: "Who inherits the mind you've built.",
+    href: "/beneficiaries",
+    icon: Users,
+    tone: "gold",
+    locked: true,
+  },
 ];
 
-// ─── Component ───
+const TONE_COLOR: Record<NavTone, string> = {
+  cyan: "var(--ether-cyan)",
+  violet: "var(--ether-violet)",
+  magenta: "var(--ether-magenta)",
+  gold: "var(--ether-gold)",
+};
 
 export default function Home() {
   const { user, logout } = useAuth();
   const [, setLocation] = useLocation();
-  const recsQuery = trpc.home.recommendations.useQuery(undefined, { staleTime: 60_000 });
-  const interviewStatus = trpc.interviewMode.status.useQuery(undefined, { staleTime: 60_000 });
+  const recsQuery = trpc.home.recommendations.useQuery(undefined, {
+    staleTime: 60_000,
+  });
+  const interviewStatus = trpc.interviewMode.status.useQuery(undefined, {
+    staleTime: 60_000,
+  });
 
-  // Build a map of cardId → reason for highlighted cards
   const highlightMap = new Map<string, string>();
   if (recsQuery.data?.recommendations) {
     for (const rec of recsQuery.data.recommendations) {
@@ -54,103 +127,140 @@ export default function Home() {
     }
   }
 
+  const displayName =
+    user?.user_metadata?.name || user?.email?.split("@")[0] || "you";
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-800 text-white p-6 font-sora">
-      <div className="max-w-4xl mx-auto">
-        <div className="flex items-center justify-between mb-12">
-          <div>
-            <h1 className="text-4xl font-bold">Ether</h1>
-            <p className="text-slate-400 mt-1">Your Digital Mind. Living Forever.</p>
-          </div>
-          <Button
+    <EtherPageFrame
+      maxWidth="max-w-4xl"
+      aliveElement={<BreathingCore size={80} tone="violet" speed={8} />}
+      topBar={
+        <div className="flex items-center justify-between">
+          <h1 className="font-display text-xl tracking-tight text-white">
+            Ether
+          </h1>
+          <EtherButton
             variant="ghost"
-            size="sm"
-            onClick={async () => { await logout(); setLocation("/login"); }}
-            className="text-slate-400 hover:text-white hover:bg-slate-800"
+            onClick={async () => {
+              await logout();
+              setLocation("/login");
+            }}
           >
-            <LogOut className="h-4 w-4 mr-2" />
+            <LogOut className="h-4 w-4" />
             Log out
-          </Button>
+          </EtherButton>
         </div>
+      }
+    >
+      {/* Hero greeting — voice-first, no "Welcome back" clinical opener. */}
+      <h2 className="font-display text-2xl md:text-3xl tracking-tight text-white mb-12 leading-tight">
+        Your mind is waiting,{" "}
+        <span className="text-slate-400">{displayName}</span>.
+      </h2>
 
-        {user?.email && (
-          <p className="text-slate-400 mb-8">Welcome back, <span className="text-white">{user.user_metadata?.name || user.email}</span></p>
-        )}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {NAV.map((item) => {
+          const reason = item.locked
+            ? null
+            : (highlightMap.get(item.cardId) ?? null);
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {navItems.map((item) => {
-            const reason = item.locked ? null : highlightMap.get(item.cardId) ?? null;
+          const description =
+            item.cardId === "interview_mode" &&
+            interviewStatus.data?.currentLevel
+              ? (() => {
+                  const cl = interviewStatus.data.levels.find(
+                    (l) => l.level === interviewStatus.data!.currentLevel,
+                  );
+                  return cl
+                    ? `Level ${cl.level} — ${cl.answered}/${cl.total}`
+                    : item.description;
+                })()
+              : item.description;
 
-            if (item.locked) {
-              return (
-                <Card
-                  key={item.cardId}
-                  className="bg-slate-800/60 border-slate-700 opacity-40 cursor-default transition-colors relative"
-                >
-                  <span
-                    className="absolute top-3 right-3 font-sora uppercase text-[#64748b] select-none"
-                    style={{
-                      fontSize: "9px",
-                      letterSpacing: "0.1em",
-                      background: "rgba(255,255,255,0.05)",
-                      border: "1px solid rgba(255,255,255,0.08)",
-                      borderRadius: "4px",
-                      padding: "3px 8px",
-                    }}
-                  >
-                    Coming soon
-                  </span>
-                  <CardHeader>
-                    <CardTitle className="text-white flex items-center gap-3 text-lg">
-                      <item.icon className="h-5 w-5 text-blue-400" />
-                      {item.label}
-                    </CardTitle>
-                    <CardDescription className="text-slate-400">
-                      {item.description}
-                    </CardDescription>
-                  </CardHeader>
-                </Card>
-              );
-            }
-
-            return (
-              <Card
-                key={item.cardId}
-                className={`bg-slate-800/60 hover:bg-slate-800 cursor-pointer transition-colors ${
-                  reason
-                    ? "border-blue-500/50 animate-card-pulse"
-                    : "border-slate-700 hover:border-slate-600"
-                }`}
-                onClick={() => setLocation(item.href)}
-              >
-                <CardHeader>
-                  <CardTitle className="text-white flex items-center gap-3 text-lg">
-                    <item.icon className="h-5 w-5 text-blue-400" />
-                    {item.label}
-                  </CardTitle>
-                  <CardDescription className="text-slate-400">
-                    {item.cardId === "interview_mode" && interviewStatus.data?.currentLevel
-                      ? (() => {
-                          const cl = interviewStatus.data.levels.find(l => l.level === interviewStatus.data!.currentLevel);
-                          return cl ? `Level ${cl.level} — ${cl.answered}/${cl.total}` : item.description;
-                        })()
-                      : item.description}
-                  </CardDescription>
-                  {reason && (
-                    <p className="text-[10px] text-blue-500 opacity-80 mt-1 font-sora">
-                      {reason}
-                    </p>
-                  )}
-                </CardHeader>
-              </Card>
-            );
-          })}
-        </div>
-
-        <div className="text-center text-slate-500 text-sm mt-12">
-          <p>The End of Disappearing. Building the lineage of human intelligence.</p>
-        </div>
+          return (
+            <NavCard
+              key={item.cardId}
+              item={item}
+              description={description}
+              reason={reason}
+              onClick={() => !item.locked && setLocation(item.href)}
+            />
+          );
+        })}
       </div>
-    </div>
+
+      <div className="text-center font-ui text-sm text-slate-500 mt-16">
+        The End of Disappearing. Building the lineage of human intelligence.
+      </div>
+    </EtherPageFrame>
+  );
+}
+
+function NavCard({
+  item,
+  description,
+  reason,
+  onClick,
+}: {
+  item: NavItem;
+  description: string;
+  reason: string | null;
+  onClick: () => void;
+}) {
+  const Icon = item.icon;
+  const color = TONE_COLOR[item.tone];
+
+  if (item.locked) {
+    return (
+      <div className="relative rounded-xl border border-white/5 bg-white/[0.02] p-5 opacity-50 cursor-default">
+        <div className="absolute top-3 right-3">
+          <StatusPill tone="neutral">Coming soon</StatusPill>
+        </div>
+        <div className="flex items-center gap-3 mb-2">
+          <Icon className="h-5 w-5" style={{ color }} />
+          <h3 className="font-display text-lg tracking-tight text-white">
+            {item.label}
+          </h3>
+        </div>
+        <p className="font-ui text-sm text-slate-500 leading-relaxed">
+          {description}
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        "group relative text-left w-full rounded-xl border p-5 transition-all duration-[180ms] ease-out",
+        "bg-white/[0.02] hover:bg-white/[0.04] active:translate-y-px",
+        reason
+          ? "border-[color-mix(in_srgb,var(--ether-violet)_35%,transparent)] shadow-[0_0_20px_0_rgba(138,124,255,0.15)]"
+          : "border-white/5 hover:border-white/10",
+      )}
+    >
+      <div className="flex items-center gap-3 mb-2">
+        <Icon
+          className="h-5 w-5 transition-[filter] duration-[180ms] group-hover:[filter:drop-shadow(0_0_8px_currentColor)]"
+          style={{ color }}
+        />
+        <h3 className="font-display text-lg tracking-tight text-white">
+          {item.label}
+        </h3>
+      </div>
+      <p className="font-ui text-sm text-slate-400 leading-relaxed">
+        {description}
+      </p>
+      {reason && (
+        <p
+          className="font-ui text-[11px] mt-3 tracking-wide"
+          style={{ color: "var(--ether-violet)" }}
+        >
+          {reason}
+        </p>
+      )}
+    </button>
   );
 }

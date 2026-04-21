@@ -134,8 +134,11 @@
   --sidebar-ring: oklch(0.488 0.243 264.376);
 }
 
-/* ─── Mind Map fonts & utilities ─── */
-.font-sora { font-family: 'Sora', system-ui, sans-serif; }
+/* ─── Ether fonts & utilities ───
+ * Sora is retired. `.font-sora` is aliased to Inter during the Phase 3
+ * per-page migration so existing usages (Home, Mind Map, Interview Mode,
+ * Companion avatar) don't regress to system-ui before we replace them. */
+.font-sora { font-family: 'Inter', system-ui, sans-serif; }
 .font-serif { font-family: 'Source Serif 4', Georgia, serif; }
 
 .glass {
@@ -191,6 +194,7 @@
   }
   body {
     @apply bg-background text-foreground;
+    font-family: 'Inter', system-ui, sans-serif;
   }
   button:not(:disabled),
   [role="button"]:not([aria-disabled="true"]),

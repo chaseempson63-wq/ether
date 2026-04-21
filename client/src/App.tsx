@@ -11,6 +11,7 @@ import HallidayInterview from "./pages/HallidayInterview";
 import DailyReflection from "./pages/DailyReflection";
 import PersonaChat from "./pages/PersonaChat";
 import Dashboard from "./pages/Dashboard";
+import DevPrimitives from "./pages/DevPrimitives";
 import InterviewMode from "./pages/InterviewMode";
 import BeneficiaryManagement from "./pages/BeneficiaryManagement";
 import QuickMemory from "./pages/QuickMemory";
@@ -37,6 +38,9 @@ function Router() {
       {/* Public routes */}
       <Route path="/login" component={Login} />
       <Route path="/register" component={Register} />
+
+      {/* Dev-only primitives preview. Not linked from nav — visit directly. */}
+      <Route path="/dev/primitives" component={DevPrimitives} />
 
       {/* Protected routes */}
       <Route path="/">{() => <Protected><Home /></Protected>}</Route>

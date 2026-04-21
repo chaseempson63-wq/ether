@@ -40,6 +40,7 @@ export const EtherButton = forwardRef<HTMLButtonElement, EtherButtonProps>(
       <button
         ref={ref}
         disabled={disabled || loading}
+        data-ether-variant={variant}
         className={cn(BASE, VARIANT[variant], className)}
         style={mergedStyle}
         {...rest}

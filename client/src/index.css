@@ -225,6 +225,116 @@
   animation: avatar-ping 4s ease-out infinite;
 }
 
+/* ─── Day mode — Apple-style glassmorphism overrides ──────────────────────
+ *
+ * Night (default) = every token defined in :root. Day mode only overrides
+ * what needs to flip. Cards become frosted glass (backdrop-blur + saturate),
+ * text scale inverts, aurora dims, card-pulse glow shifts to violet.
+ *
+ * Glass parameters tuned to Apple's signature feel:
+ *   background: rgba(255,255,255,0.62)   — not fully opaque, lets aurora through
+ *   backdrop-filter: blur(20px) saturate(1.8)  — Apple uses ~1.8 saturation
+ *   inset highlight + outer drop for dimensional depth
+ *
+ * Applies globally when <html> has the `day` class (toggled by ThemeProvider).
+ */
+html.day {
+  --ether-bg0: #F4F5FA;
+  --ether-ink0: #0A0E1F;
+}
+
+html.day body {
+  background: #F4F5FA;
+  color: #0A0E1F;
+}
+
+html.day .bg-ether-bg {
+  background:
+    radial-gradient(1200px 700px at 10% -10%, rgba(138,124,255,0.10), transparent 60%),
+    radial-gradient(1000px 600px at 100% 10%, rgba(61,217,255,0.08), transparent 60%),
+    radial-gradient(900px 500px at 50% 110%, rgba(255,111,209,0.06), transparent 60%),
+    linear-gradient(180deg, #F8F9FC 0%, #EEF0F7 100%);
+}
+
+/* Text scale: invert the slate ladder so hierarchy reads correctly on light bg.
+ * The :not() guards keep text-white white on colored surfaces (primary +
+ * destructive EtherButton, Dashboard avatar initials, etc.) by opting out
+ * anything marked with data-ether-variant or a known violet/gold/rose fill. */
+html.day .text-white:not([data-ether-variant="primary"]):not([data-ether-variant="destructive"]):not([data-keep-white]) { color: #0A0E1F; }
+html.day .text-slate-100     { color: #0F172A; }
+html.day .text-slate-200     { color: #1E293B; }
+html.day .text-slate-300     { color: #334155; }
+html.day .text-slate-400     { color: #475569; }
+html.day .text-slate-500     { color: #64748B; }
+html.day .text-slate-600     { color: #94A3B8; }
+
+/* Colored-surface buttons keep white text on both themes. */
+html.day [data-ether-variant="primary"],
+html.day [data-ether-variant="destructive"],
+html.day [data-keep-white] { color: white; }
+
+/* Card surfaces — the glass. Targets the exact arbitrary utility classes
+ * Tailwind emits from bg-white/[0.02] etc. Tailwind escapes [ ] and . in
+ * class names; our selectors escape them the same way. */
+html.day .bg-white\/\[0\.02\],
+html.day .bg-white\/\[0\.04\],
+html.day .bg-white\/\[0\.06\] {
+  background: rgba(255, 255, 255, 0.62);
+  backdrop-filter: blur(20px) saturate(1.8);
+  -webkit-backdrop-filter: blur(20px) saturate(1.8);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.85),
+    0 1px 2px rgba(15, 23, 42, 0.04),
+    0 8px 32px rgba(15, 23, 42, 0.06);
+}
+
+html.day .bg-white\/\[0\.04\] {
+  background: rgba(255, 255, 255, 0.75);
+}
+
+html.day .bg-white\/\[0\.06\] {
+  background: rgba(255, 255, 255, 0.85);
+}
+
+/* Hover state — slightly brighter glass + deeper lift. */
+html.day .hover\:bg-white\/\[0\.04\]:hover,
+html.day .hover\:bg-white\/\[0\.06\]:hover {
+  background: rgba(255, 255, 255, 0.82);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.95),
+    0 2px 4px rgba(15, 23, 42, 0.06),
+    0 12px 40px rgba(15, 23, 42, 0.09);
+}
+
+/* Borders flip from semi-white (over dark) to subtle slate (over light). */
+html.day .border-white\/5     { border-color: rgba(15, 23, 42, 0.06); }
+html.day .border-white\/10    { border-color: rgba(15, 23, 42, 0.08); }
+html.day .border-white\/20    { border-color: rgba(15, 23, 42, 0.12); }
+html.day .border-white\/\[0\.05\],
+html.day .border-white\/\[0\.06\],
+html.day .border-white\/\[0\.08\] { border-color: rgba(15, 23, 42, 0.06); }
+
+html.day .hover\:border-white\/10:hover,
+html.day .hover\:border-white\/20:hover { border-color: rgba(15, 23, 42, 0.14); }
+
+/* Toast / dialog backgrounds that use explicit dark values. */
+html.day [style*="background: rgba(8,11,20"],
+html.day [style*="background: rgba(11,16,32"] {
+  background: rgba(255, 255, 255, 0.9) !important;
+  color: #0A0E1F;
+}
+
+/* Home card-pulse glow → violet instead of blue so the Companion highlight
+ * reads as insight-family on both themes. */
+@keyframes card-pulse-violet {
+  0%, 100% { box-shadow: 0 0 16px rgba(138,124,255,0.18); }
+  50%      { box-shadow: 0 0 16px rgba(138,124,255,0.38); }
+}
+html.day .animate-card-pulse { animation: card-pulse-violet 3s ease-in-out infinite; }
+
+/* NotFound & other pages: explicit bg-ether-bg class works via the
+ * :root/html.day --ether-bg0 token flip above, nothing further needed. */
+
 @layer base {
   * {
     @apply border-border outline-ring/50;

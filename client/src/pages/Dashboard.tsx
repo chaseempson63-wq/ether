@@ -9,7 +9,10 @@ import {
   ArrowLeft,
   MessageCircle,
   MessageCircleOff,
+  Sun,
+  Moon,
 } from "lucide-react";
+import { useTheme } from "@/contexts/ThemeContext";
 import { useLocation } from "wouter";
 import { useMemo } from "react";
 import {
@@ -28,6 +31,7 @@ export default function Dashboard() {
   const { user } = useAuth();
   const [, setLocation] = useLocation();
   const companion = useCompanion();
+  const { theme, toggleTheme } = useTheme();
   const dashboardQuery = trpc.dashboard.get.useQuery(undefined, {
     refetchOnWindowFocus: false,
   });
@@ -76,23 +80,42 @@ export default function Dashboard() {
             <div className="text-[11px] text-slate-500 hidden md:block">
               {data ? `Mind v${data.user.mindVersion}` : "Mind v…"}
             </div>
-            <button
-              onClick={() => companion.setEnabled(!companion.enabled)}
-              className="flex items-center gap-2 text-[11px] tracking-[0.18em] text-slate-500 hover:text-white transition-colors uppercase"
-              title={companion.enabled ? "Disable companion" : "Enable companion"}
-            >
-              {companion.enabled ? (
-                <>
-                  <MessageCircle className="h-3.5 w-3.5" /> Companion on
-                </>
-              ) : (
-                <>
-                  <MessageCircleOff className="h-3.5 w-3.5" /> Companion off
-                </>
-              )}
-            </button>
+
+            {/* Settings cluster — paired theme + companion toggles. The
+                glass pill reads as a single "customization" cell on the
+                dashboard. */}
+            <div className="flex items-center gap-1 rounded-full bg-white/[0.04] border border-white/[0.06] p-1 backdrop-blur-sm">
+              <SettingToggle
+                on={theme === "day"}
+                onToggle={toggleTheme}
+                iconOn={<Sun className="h-3.5 w-3.5" />}
+                iconOff={<Moon className="h-3.5 w-3.5" />}
+                labelOn="Day"
+                labelOff="Night"
+                tooltip={theme === "day" ? "Switch to night" : "Switch to day"}
+              />
+              <span
+                aria-hidden="true"
+                className="w-px h-4 bg-white/10 mx-0.5"
+              />
+              <SettingToggle
+                on={companion.enabled}
+                onToggle={() => companion.setEnabled(!companion.enabled)}
+                iconOn={<MessageCircle className="h-3.5 w-3.5" />}
+                iconOff={<MessageCircleOff className="h-3.5 w-3.5" />}
+                labelOn="On"
+                labelOff="Off"
+                tooltip={
+                  companion.enabled
+                    ? "Turn companion off"
+                    : "Turn companion on"
+                }
+              />
+            </div>
+
             <div
-              className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold"
+              data-keep-white
+              className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold text-white"
               style={{
                 background:
                   "linear-gradient(135deg, var(--ether-cyan), var(--ether-violet))",
@@ -264,5 +287,41 @@ export default function Dashboard() {
         )}
       </div>
     </div>
+  );
+}
+
+function SettingToggle({
+  on,
+  onToggle,
+  iconOn,
+  iconOff,
+  labelOn,
+  labelOff,
+  tooltip,
+}: {
+  on: boolean;
+  onToggle: () => void;
+  iconOn: React.ReactNode;
+  iconOff: React.ReactNode;
+  labelOn: string;
+  labelOff: string;
+  tooltip: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      aria-pressed={on}
+      title={tooltip}
+      {...(on ? { "data-keep-white": "" } : {})}
+      className={`flex items-center gap-1.5 rounded-full px-2.5 py-1 transition-all duration-[180ms] text-[11px] font-medium tracking-wide ${
+        on
+          ? "bg-ether-violet text-white shadow-[0_0_12px_0_rgba(138,124,255,0.35)]"
+          : "text-slate-400 hover:text-white"
+      }`}
+    >
+      {on ? iconOn : iconOff}
+      <span>{on ? labelOn : labelOff}</span>
+    </button>
   );
 }

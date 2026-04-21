@@ -291,7 +291,10 @@ export default function MindMap() {
       n.fy = undefined;
     });
     fg.d3Force("charge")?.strength(-180);
-    fg.d3Force("link")?.distance(35);
+    // Link distance 60 gives connected nodes breathing room for labels to
+    // sit beside each node without overlapping. Tight enough to keep family
+    // clusters cohesive; loose enough that each node claims its own space.
+    fg.d3Force("link")?.distance(60);
     // Explicit center gravity — gentle pull toward origin every tick. This is
     // what keeps the graph cohesive over time: without it, repulsion slowly
     // wins out after many interactions and nodes drift outward forever.
@@ -341,24 +344,23 @@ export default function MindMap() {
     fg.zoom(naturalFit * ZOOM_IN_MULTIPLIER, 500);
   }, []);
 
-  // ─── Drag-pin architecture ───
+  // ─── Drag-pin architecture (2-hop free, ≥3-hop pinned) ───
   //
   // Library default: during drag, alphaTarget=0.3 keeps the engine ticking
-  // continuously. ALL nodes can move under forces. Two consequences:
-  //   - Long drags drift the whole graph outward (charge dominates center
-  //     gravity over many ticks → "viewport zooming out" perception).
-  //   - On release, link springs + center gravity all snap together → whole
-  //     graph compresses ("snap-cluster").
+  // continuously. Without intervention, every node in the graph drifts under
+  // forces → whole-graph drift during drag, whole-graph snap on release.
   //
-  // Architectural fix: pin all nodes EXCEPT the dragged node and its 1-hop
-  // neighbors when drag begins. Unpin on release. Net effect:
-  //   - Dragged node: cursor controls fx/fy (library handles it)
-  //   - 1-hop neighbors: free to respond elastically via link force (the
-  //     "tug" Obsidian gives you when you grab a node)
-  //   - All other nodes: physically cannot move during drag — geometric
-  //     impossibility, not a force-balance request
+  // Architectural fix: BFS from the dragged node, pin everything at hop
+  // distance ≥ 3. The dragged node plus its 1-hop and 2-hop neighbors stay
+  // free. Cascade motion propagates naturally through the link force:
+  //   - Dragged node moves X (cursor-driven)
+  //   - 1-hop neighbors: pulled by link spring → move some fraction of X
+  //   - 2-hop neighbors: pulled by the 1-hop node they link to → move a
+  //     smaller fraction still (natural spring decay through chains)
+  //   - 3+ hop nodes: physically pinned, geometrically cannot drift
   //
-  // Drift and snap reduce to local-only motion around the drag site.
+  // Feels alive and connected (2-3 hops of visible response) without
+  // allowing unbounded whole-graph motion.
 
   // Adjacency index built once per data-set change. Maps nodeId → Set of
   // 1-hop neighbor ids. Cheap (O(edges)) and memoized so the lookup during
@@ -385,9 +387,24 @@ export default function MindMap() {
     (node: any) => {
       // Only act on first drag tick (set is empty between drags).
       if (draggedPinSetRef.current.size > 0) return;
+      // BFS up to depth 2 from the dragged node. Everything reached stays
+      // free; everything else gets pinned.
       const keepFreeIds = new Set<string>([node.id]);
-      const neighbors = neighborMap.get(node.id);
-      if (neighbors) neighbors.forEach((n) => keepFreeIds.add(n));
+      let frontier: string[] = [node.id];
+      for (let depth = 1; depth <= 2; depth++) {
+        const nextFrontier: string[] = [];
+        for (const id of frontier) {
+          const neighbors = neighborMap.get(id);
+          if (!neighbors) continue;
+          neighbors.forEach((neighborId) => {
+            if (!keepFreeIds.has(neighborId)) {
+              keepFreeIds.add(neighborId);
+              nextFrontier.push(neighborId);
+            }
+          });
+        }
+        frontier = nextFrontier;
+      }
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       for (const n of filteredData.nodes as any[]) {
         if (!keepFreeIds.has(n.id)) {
@@ -480,15 +497,25 @@ export default function MindMap() {
       const x = node.x ?? 0;
       const y = node.y ?? 0;
 
-      // Ambient glow halo (1.8x radius, subtle)
-      const glowAlpha = isHovered ? 0.18 : isAnchor ? 0.08 : 0.05;
-      ctx.beginPath();
-      ctx.arc(x, y, radius * 1.8, 0, Math.PI * 2);
-      ctx.fillStyle =
-        color +
-        Math.round(glowAlpha * 255)
+      // Soft radial-gradient glow (not a solid halo circle). Center pixels
+      // bright in the node's layer color; opacity falls off exponentially to
+      // zero at the outer edge so the glow blends into the canvas black.
+      //   - center alpha: strongest reading of "this node is a light source"
+      //   - 0.5 stop: ~35% of center alpha — carries the color into the aura
+      //   - outer stop: fully transparent so there's no hard ring edge
+      const centerAlpha = isHovered ? 0.45 : isAnchor ? 0.22 : 0.14;
+      const glowR = radius * 2.6;
+      const grad = ctx.createRadialGradient(x, y, 0, x, y, glowR);
+      const toHex = (a: number) =>
+        Math.round(Math.max(0, Math.min(1, a)) * 255)
           .toString(16)
           .padStart(2, "0");
+      grad.addColorStop(0, color + toHex(centerAlpha));
+      grad.addColorStop(0.5, color + toHex(centerAlpha * 0.35));
+      grad.addColorStop(1, color + "00");
+      ctx.beginPath();
+      ctx.arc(x, y, glowR, 0, Math.PI * 2);
+      ctx.fillStyle = grad;
       ctx.fill();
 
       // Main circle — anchors fully saturated, leaves slightly muted

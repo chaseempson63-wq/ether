@@ -220,13 +220,13 @@ export default function QuickMemory() {
     : "Tap to capture a thought";
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-800 p-6">
+    <div className="min-h-screen bg-ether-bg p-6">
       <div className="max-w-2xl mx-auto">
         <Button
           variant="ghost"
           size="sm"
           onClick={() => setLocation("/")}
-          className="mb-4 text-slate-400 hover:text-white hover:bg-slate-800"
+          className="mb-4 text-slate-400 hover:text-white hover:bg-white/[0.04]"
         >
           <ArrowLeft className="h-4 w-4 mr-2" />
           Home
@@ -235,7 +235,7 @@ export default function QuickMemory() {
         {/* Header */}
         <div className="mb-6">
           <div className="flex items-center gap-3 mb-2">
-            <Zap className="w-7 h-7 text-blue-400" />
+            <Zap className="w-7 h-7 text-ether-cyan" />
             <h1 className="text-3xl font-bold text-white">Quick Memory</h1>
           </div>
           <p className="text-slate-400">Capture a thought before it's gone.</p>
@@ -248,7 +248,7 @@ export default function QuickMemory() {
             placeholder="Recall a memory…"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-9 pr-12 bg-slate-700 border-slate-600 text-white placeholder:text-slate-500"
+            className="pl-9 pr-12 bg-white/[0.04] border-white/[0.06] text-white placeholder:text-slate-500"
           />
           <VoiceInput
             className="absolute right-1 top-1/2 -translate-y-1/2"
@@ -275,6 +275,7 @@ export default function QuickMemory() {
               title={bigBtnTooltip}
               aria-label={bigBtnTooltip}
               aria-pressed={bigRecording}
+              data-ether-variant="primary"
               className={cn(
                 "relative z-10 rounded-full flex items-center justify-center transition-all",
                 orbSupported
@@ -286,7 +287,7 @@ export default function QuickMemory() {
                       "h-24 w-24 shadow-lg",
                       bigRecording
                         ? "bg-red-600 hover:bg-red-700 text-white scale-105"
-                        : "bg-blue-600 hover:bg-blue-700 text-white"
+                        : "bg-ether-violet hover:bg-ether-violet/90 text-white"
                     ),
                 !bigSupported && "opacity-40 cursor-not-allowed"
               )}
@@ -312,7 +313,7 @@ export default function QuickMemory() {
 
         {/* Transcript card */}
         {transcript && (
-          <div className="mb-8 bg-slate-800 border border-slate-700 rounded-lg p-4">
+          <div className="mb-8 bg-white/[0.04] border border-white/[0.06] rounded-lg p-4">
             <div className="text-xs text-slate-500 mb-2">Transcript</div>
             <p className="text-slate-100 whitespace-pre-wrap mb-4">
               {transcript}
@@ -321,7 +322,8 @@ export default function QuickMemory() {
               <Button
                 onClick={handleSave}
                 disabled={isSaving}
-                className="flex-1 bg-blue-600 hover:bg-blue-700"
+                data-ether-variant="primary"
+                className="flex-1 bg-ether-violet hover:bg-ether-violet/90"
               >
                 <Save className="h-4 w-4 mr-2" />
                 {isSaving ? "Saving…" : "Save"}
@@ -330,7 +332,7 @@ export default function QuickMemory() {
                 onClick={handleClear}
                 disabled={isSaving}
                 variant="outline"
-                className="border-slate-600 text-slate-300 hover:bg-slate-800 hover:text-white"
+                className="border-white/[0.06] text-slate-300 hover:bg-white/[0.04]"
               >
                 <X className="h-4 w-4 mr-2" />
                 Clear
@@ -366,7 +368,7 @@ export default function QuickMemory() {
               filteredMemories.map((m) => (
                 <div
                   key={m.id}
-                  className="group bg-slate-800/60 border border-slate-700/60 rounded-lg p-3 relative"
+                  className="group bg-white/[0.04] border border-white/[0.06] rounded-lg p-3 relative"
                 >
                   <div className="flex items-start justify-between gap-2 mb-1">
                     <div className="text-xs text-slate-500">
@@ -398,7 +400,7 @@ export default function QuickMemory() {
         open={deleteTargetId !== null}
         onOpenChange={(open) => { if (!open) setDeleteTargetId(null); }}
       >
-        <AlertDialogContent>
+        <AlertDialogContent className="bg-white/[0.06] border-white/[0.06] text-white backdrop-blur-xl">
           <AlertDialogHeader>
             <AlertDialogTitle>Delete this memory?</AlertDialogTitle>
             <AlertDialogDescription>
@@ -422,7 +424,8 @@ export default function QuickMemory() {
                 }
               }}
               disabled={deleteMemory.isPending}
-              className="bg-red-600 hover:bg-red-500 text-white"
+              data-ether-variant="destructive"
+              className="bg-destructive hover:bg-destructive/90 text-white"
             >
               {deleteMemory.isPending ? "Deleting…" : "Delete forever"}
             </AlertDialogAction>

@@ -237,6 +237,37 @@
 }
 
 @layer components {
+  /* ─── Canonical primary CTA ─────────────────────────────────────────────
+   * Every CTA is a decision; violet is the decision/insight family.
+   * Phase 3 will migrate bg-blue-600 usages to this utility; for now it's
+   * simply available. */
+  .btn-primary {
+    background-color: var(--ether-violet);
+    color: #fff;
+    font-family: var(--font-ui);
+    font-weight: 500;
+    font-size: 14px;
+    padding: 10px 20px;
+    border-radius: 8px;
+    border: 0;
+    transition: background-color 180ms ease-out, box-shadow 180ms ease-out,
+      transform 180ms ease-out;
+    box-shadow: 0 0 0 0 rgba(138, 124, 255, 0);
+    cursor: pointer;
+  }
+  .btn-primary:hover:not(:disabled) {
+    background-color: color-mix(in oklab, var(--ether-violet), white 8%);
+    box-shadow: 0 0 24px 0 rgba(138, 124, 255, 0.35);
+  }
+  .btn-primary:active:not(:disabled) {
+    transform: translateY(1px);
+  }
+  .btn-primary:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    box-shadow: none;
+  }
+
   /**
    * Custom container utility that centers content and adds responsive padding.
    *

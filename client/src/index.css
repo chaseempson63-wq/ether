@@ -92,6 +92,14 @@
   to   { transform: rotate(360deg); }
 }
 
+/* Slow breathing pulse for the orbit viz core — scale from 0.6→1.0 keeps the
+ * apparent radius in the 12→20 range at r=20 base, and opacity tops out at
+ * 0.45 so the 79% hero number never gets occluded. */
+@keyframes etherBreathe {
+  from { transform: scale(0.6); opacity: 0.25; }
+  to   { transform: scale(1.0); opacity: 0.45; }
+}
+
 .dark {
   --primary: var(--color-blue-700);
   --primary-foreground: var(--color-blue-50);

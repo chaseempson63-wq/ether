@@ -256,15 +256,25 @@ export function BrainRingsViz({
             })}
           </g>
         ))}
-        {/* Core — a small violet/cyan pulse, not a blinding white dot */}
+        {/* Core — a slow breathing pulse driven by CSS. Max opacity 0.45 so
+            the 79% readout always reads cleanly above it. */}
         <defs>
           <radialGradient id="etherCore" cx="50%" cy="50%" r="50%">
-            <stop offset="0%" stopColor="#C9BFFF" stopOpacity="0.9" />
-            <stop offset="60%" stopColor="#6B5DFF" stopOpacity="0.4" />
+            <stop offset="0%" stopColor="#C9BFFF" stopOpacity="1" />
+            <stop offset="60%" stopColor="#6B5DFF" stopOpacity="0.5" />
             <stop offset="100%" stopColor="#6B5DFF" stopOpacity="0" />
           </radialGradient>
         </defs>
-        <circle cx="0" cy="0" r="28" fill="url(#etherCore)" />
+        <circle
+          cx="0"
+          cy="0"
+          r="20"
+          fill="url(#etherCore)"
+          style={{
+            transformOrigin: "0 0",
+            animation: "etherBreathe 4s ease-in-out infinite alternate",
+          }}
+        />
       </svg>
 
       {/* Center readouts — coherence is the hero metric, dominant in type. */}

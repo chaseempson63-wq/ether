@@ -3,6 +3,7 @@ import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { useCompanion } from "@/companion";
 import { VoiceInput } from "@/components/VoiceInput";
+import { useAchievementToaster } from "@/hooks/useAchievementToaster";
 import {
   ArrowLeft,
   Loader2,
@@ -124,12 +125,14 @@ export default function InterviewMode() {
 
   const utils = trpc.useUtils();
   // answer creates memory_nodes — must invalidate Mind Map caches.
+  const evaluateAchievements = useAchievementToaster();
   const answerMutation = trpc.interviewMode.answer.useMutation({
     onSuccess: (data) => {
       setAnswerText("");
       notifyMutation("interviewMode.answer");
       utils.mindMap.graph.invalidate();
       utils.mindMap.prompts.invalidate();
+      evaluateAchievements();
 
       if (data.levelComplete) {
         notifyMutation("interviewMode.levelComplete");

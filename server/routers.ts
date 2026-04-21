@@ -7,6 +7,8 @@ import { beneficiaryRouter } from "./routers/beneficiary";
 import { publicProcedure, protectedProcedure, router } from "./_core/trpc";
 import { z } from "zod";
 import { getOrCreateProfile, updateProfile, createMemoryNode, getMemoryNodesByUserId, createMemoryEdge, getMemoryEdgesByUserId, deleteMemoryNode } from "./db";
+import { getDashboard } from "./dashboard";
+import { ACHIEVEMENTS, evaluateAchievements } from "./achievements";
 import { personaRouter } from "./routers/persona";
 import { interviewRouter } from "./routers/interview";
 import { interviewModeRouter } from "./routers/interviewMode";
@@ -371,6 +373,31 @@ export const appRouter = router({
   interviewMode: interviewModeRouter,
   mindMap: mindMapRouter,
   home: homeRouter,
+
+  dashboard: router({
+    get: protectedProcedure.query(async ({ ctx }) => {
+      return await getDashboard(ctx.user.id);
+    }),
+
+    evaluateAchievements: protectedProcedure.mutation(async ({ ctx }) => {
+      const newlyEarned = await evaluateAchievements(ctx.user.id);
+      const catalog = new Map(ACHIEVEMENTS.map((d) => [d.id, d]));
+      return newlyEarned
+        .map((r) => {
+          const def = catalog.get(r.achievementId);
+          if (!def) return null;
+          return {
+            achievementId: r.achievementId,
+            name: def.name,
+            sub: def.sub,
+            color: def.color,
+            icon: def.icon,
+            earnedAt: r.earnedAt.toISOString(),
+          };
+        })
+        .filter(<T,>(v: T | null): v is T => v !== null);
+    }),
+  }),
 });
 
 export type AppRouter = typeof appRouter;

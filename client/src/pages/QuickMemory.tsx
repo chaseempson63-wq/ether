@@ -24,6 +24,7 @@ import {
   type EtherOrbHandle,
 } from "@/components/EtherOrb";
 import { useCompanion } from "@/companion";
+import { useAchievementToaster } from "@/hooks/useAchievementToaster";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -73,6 +74,7 @@ export default function QuickMemory() {
   const orbSupported = orbSupportedRef.current;
 
   const utils = trpc.useUtils();
+  const evaluateAchievements = useAchievementToaster();
   const memoriesQuery = trpc.memory.list.useQuery();
   const createMemory = trpc.memory.create.useMutation({
     onSuccess: () => {
@@ -191,6 +193,7 @@ export default function QuickMemory() {
       toast.success("Saved to Ether");
       setTranscript("");
       await utils.memory.list.invalidate();
+      evaluateAchievements();
     } catch (e) {
       console.error("Failed to save quick memory", e);
       toast.error("Failed to save");

@@ -5,6 +5,7 @@ import { forceX, forceY } from "d3-force";
 import { trpc } from "@/lib/trpc";
 import { useCompanion } from "@/companion";
 import { VoiceInput } from "@/components/VoiceInput";
+import { useAchievementToaster } from "@/hooks/useAchievementToaster";
 import {
   ArrowLeft,
   Loader2,
@@ -188,11 +189,13 @@ export default function MindMap() {
   const promptsQuery = trpc.mindMap.prompts.useQuery(undefined, {
     staleTime: 120_000,
   });
+  const evaluateAchievements = useAchievementToaster();
   const answerMutation = trpc.mindMap.answer.useMutation({
     onSuccess: () => {
       graphQuery.refetch();
       promptsQuery.refetch();
       setExpandedPrompt(null);
+      evaluateAchievements();
     },
   });
 

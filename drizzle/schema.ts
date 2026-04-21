@@ -336,3 +336,18 @@ export const interviewGenerationLogs = pgTable("interview_generation_logs", {
 ]);
 
 export type InterviewGenerationLog = typeof interviewGenerationLogs.$inferSelect;
+
+// ─── Achievements (only earned rows persisted; definitions live in code) ───
+
+export const userAchievements = pgTable("user_achievements", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  userId: integer("user_id").notNull(),
+  achievementId: text("achievement_id").notNull(),
+  earnedAt: timestamp("earned_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  uniqueIndex("user_achievements_user_achievement_idx").on(table.userId, table.achievementId),
+  index("user_achievements_earned_at_idx").on(table.earnedAt),
+]);
+
+export type UserAchievement = typeof userAchievements.$inferSelect;
+export type InsertUserAchievement = typeof userAchievements.$inferInsert;

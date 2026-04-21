@@ -76,6 +76,20 @@
   --sidebar-accent-foreground: oklch(0.141 0.005 285.823);
   --sidebar-border: oklch(0.92 0.004 286.32);
   --sidebar-ring: oklch(0.623 0.214 259.815);
+
+  /* Ether "alive dashboard" palette — used by the new Dashboard UI. */
+  --ether-bg0: #060913;
+  --ether-ink0: #F3F5FF;
+  --ether-cyan: #3DD9FF;
+  --ether-violet: #8A7CFF;
+  --ether-magenta: #FF6FD1;
+  --ether-gold: #FFD27A;
+  --ether-mint: #8AF0C0;
+}
+
+@keyframes etherSpin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
 }
 
 .dark {

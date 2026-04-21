@@ -12,6 +12,7 @@ import { toast } from "sonner";
 import { Loader2, ArrowLeft, ImagePlus, X } from "lucide-react";
 import { useLocation } from "wouter";
 import { VoiceInput } from "@/components/VoiceInput";
+import { useAchievementToaster } from "@/hooks/useAchievementToaster";
 import { supabase } from "@/lib/supabase";
 import { useCompanion } from "@/companion";
 
@@ -104,9 +105,11 @@ export default function DailyReflection() {
   const utils = trpc.useUtils();
   // Any mutation that creates memory_nodes must invalidate Mind Map caches
   // (graph + prompts) so fresh nodes appear without a page reload.
+  const evaluateAchievements = useAchievementToaster();
   const invalidateMindMap = () => {
     utils.mindMap.graph.invalidate();
     utils.mindMap.prompts.invalidate();
+    evaluateAchievements();
   };
   const createMemoryMutation = trpc.memory.create.useMutation({ onSuccess: invalidateMindMap });
   const createReasoningMutation = trpc.reasoning.create.useMutation({ onSuccess: invalidateMindMap });

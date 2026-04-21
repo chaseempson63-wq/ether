@@ -197,17 +197,49 @@ export function BrainRingsViz({
   nodes,
   connections,
   coherence,
-  rings,
+  memoriesCount,
+  insightsCount,
+  valuesCount,
 }: {
   nodes: number;
   connections: number;
   coherence: number;
-  rings: { count: number; radius: number; color: string; size: number }[];
+  memoriesCount: number;
+  insightsCount: number;
+  valuesCount: number;
 }) {
+  // Orbit rings map 1:1 to the three stat types so the viz is a literal
+  // visualization of the user's graph, not decoration. Cap at 14 nodes per
+  // ring for breathing room; overflow is signaled by a subtle opacity bump.
+  const RING_CAP = 14;
+  const rings = [
+    {
+      count: Math.min(memoriesCount, RING_CAP),
+      radius: 110,
+      color: "#3DD9FF",
+      size: 3.2,
+      overflow: memoriesCount > RING_CAP,
+    },
+    {
+      count: Math.min(insightsCount, RING_CAP),
+      radius: 160,
+      color: "#8A7CFF",
+      size: 2.6,
+      overflow: insightsCount > RING_CAP,
+    },
+    {
+      count: Math.min(valuesCount, RING_CAP),
+      radius: 210,
+      color: "#FF6FD1",
+      size: 2.2,
+      overflow: valuesCount > RING_CAP,
+    },
+  ];
   const max = Math.max(...rings.map((r) => r.radius)) + 20;
   const size = max * 2;
   return (
-    <div className="relative w-full aspect-square max-w-[440px] mx-auto">
+    <div className="w-full max-w-[440px] mx-auto">
+    <div className="relative w-full aspect-square">
       <svg
         viewBox={`${-max} ${-max} ${size} ${size}`}
         width="100%"
@@ -228,34 +260,37 @@ export function BrainRingsViz({
           />
         ))}
         {/* Orbiting nodes — animated via CSS on wrapping <g> */}
-        {rings.map((ring, ri) => (
-          <g
-            key={`r${ri}`}
-            style={{
-              transformOrigin: "0 0",
-              animation: `etherSpin ${60 + ri * 25}s linear ${ri % 2 === 0 ? "" : "reverse"} infinite`,
-            }}
-          >
-            {Array.from({ length: ring.count }).map((_, i) => {
-              const angle = (i / ring.count) * Math.PI * 2;
-              const x = Math.cos(angle) * ring.radius;
-              const y = Math.sin(angle) * ring.radius;
-              return (
-                <circle
-                  key={i}
-                  cx={x}
-                  cy={y}
-                  r={ring.size}
-                  fill={ring.color}
-                  opacity="0.85"
-                  style={{
-                    filter: `drop-shadow(0 0 6px ${ring.color})`,
-                  }}
-                />
-              );
-            })}
-          </g>
-        ))}
+        {rings.map((ring, ri) => {
+          const baseOpacity = ring.overflow ? 0.95 : 0.85;
+          return (
+            <g
+              key={`r${ri}`}
+              style={{
+                transformOrigin: "0 0",
+                animation: `etherSpin ${60 + ri * 25}s linear ${ri % 2 === 0 ? "" : "reverse"} infinite`,
+              }}
+            >
+              {Array.from({ length: ring.count }).map((_, i) => {
+                const angle = (i / Math.max(ring.count, 1)) * Math.PI * 2;
+                const x = Math.cos(angle) * ring.radius;
+                const y = Math.sin(angle) * ring.radius;
+                return (
+                  <circle
+                    key={i}
+                    cx={x}
+                    cy={y}
+                    r={ring.size}
+                    fill={ring.color}
+                    opacity={baseOpacity}
+                    style={{
+                      filter: `drop-shadow(0 0 6px ${ring.color})`,
+                    }}
+                  />
+                );
+              })}
+            </g>
+          );
+        })}
         {/* Core — a slow breathing pulse driven by CSS. Max opacity 0.45 so
             the 79% readout always reads cleanly above it. */}
         <defs>
@@ -293,6 +328,28 @@ export function BrainRingsViz({
         {nodes} nodes · {connections} connections
       </div>
     </div>
+
+    {/* Legend — closes the semantic loop: each ring = one stat type. */}
+    <div className="mt-12 flex items-center justify-center gap-4 text-[11px] text-slate-400 tracking-wide">
+      <LegendDot color="#3DD9FF" label="Memories" />
+      <span className="text-slate-600">·</span>
+      <LegendDot color="#8A7CFF" label="Insights" />
+      <span className="text-slate-600">·</span>
+      <LegendDot color="#FF6FD1" label="Values" />
+    </div>
+  </div>
+  );
+}
+
+function LegendDot({ color, label }: { color: string; label: string }) {
+  return (
+    <span className="inline-flex items-center gap-1.5">
+      <span
+        className="w-1.5 h-1.5 rounded-full inline-block"
+        style={{ background: color, boxShadow: `0 0 6px ${color}` }}
+      />
+      {label}
+    </span>
   );
 }
 

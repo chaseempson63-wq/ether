@@ -80,6 +80,9 @@ export type DashboardPayload = {
     nodes: number;
     connections: number;
     coherence: number;
+    memoriesCount: number;
+    insightsCount: number;
+    valuesCount: number;
     rings: BrainRing[];
   };
   memoryStream: MemoryStreamItem[];
@@ -407,6 +410,12 @@ export async function getDashboard(
       nodes: nodes.length,
       connections: edges.length,
       coherence,
+      memoriesCount: stats.memoryCount,
+      insightsCount: stats.reasoningCount,
+      valuesCount: stats.valuesCount,
+      // Legacy viz field — retained for backwards compatibility; the new
+      // BrainRingsViz derives rings directly from the three counts above so
+      // the orbit literally visualizes the user's graph.
       rings: [
         { count: ringNodeCount(0.2, 8), radius: 110, color: "#3DD9FF", size: 3.2 },
         { count: ringNodeCount(0.35, 12), radius: 160, color: "#8A7CFF", size: 2.6 },

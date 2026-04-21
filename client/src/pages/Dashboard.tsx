@@ -125,7 +125,9 @@ export default function Dashboard() {
                   nodes={data.brain.nodes}
                   connections={data.brain.connections}
                   coherence={data.brain.coherence}
-                  rings={data.brain.rings}
+                  memoriesCount={data.brain.memoriesCount}
+                  insightsCount={data.brain.insightsCount}
+                  valuesCount={data.brain.valuesCount}
                 />
               </div>
               <div className="lg:col-span-2 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-4">

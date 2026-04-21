@@ -143,13 +143,13 @@ export default function HallidayInterview() {
   const isWorking = phase === "loading_followup" || phase === "saving";
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-800 p-6">
+    <div className="min-h-screen bg-ether-bg p-6">
       <div className="max-w-4xl mx-auto">
         <Button
           variant="ghost"
           size="sm"
           onClick={() => setLocation("/")}
-          className="mb-4 text-slate-400 hover:text-white hover:bg-slate-800"
+          className="mb-4 text-slate-400 hover:text-white hover:bg-white/[0.04]"
         >
           <ArrowLeft className="h-4 w-4 mr-2" />
           Home
@@ -157,8 +157,8 @@ export default function HallidayInterview() {
 
         {/* Mind Map deep-link banner */}
         {topicParam && (
-          <div className="mb-4 bg-blue-900/30 border border-blue-800/50 rounded-lg px-4 py-3">
-            <p className="text-blue-300 text-sm">
+          <div className="mb-4 bg-ether-violet/10 border border-ether-violet/20 rounded-lg px-4 py-3">
+            <p className="text-ether-violet text-sm">
               <span className="font-semibold">Deepening from Mind Map</span> — answering questions to strengthen this area of your identity graph.
             </p>
           </div>
@@ -171,12 +171,12 @@ export default function HallidayInterview() {
             <p className="text-slate-400">Build your Digital Mind. One answer at a time.</p>
           </div>
           <div className="text-right">
-            <div className="text-4xl font-bold text-blue-400">
+            <div className="text-4xl font-bold text-ether-cyan">
               {Math.round(weightedAccuracy * 100)}%
             </div>
             <div className="text-sm text-slate-400">Identity Accuracy</div>
             {currentThreshold && (
-              <Badge className={`mt-1 ${THRESHOLD_COLORS[currentThreshold.label] ?? "bg-slate-600"}`}>
+              <Badge className={`mt-1 ${THRESHOLD_COLORS[currentThreshold.label] ?? "bg-white/[0.06]"}`}>
                 {currentThreshold.label}
               </Badge>
             )}
@@ -185,7 +185,7 @@ export default function HallidayInterview() {
 
         {/* Threshold Progress Bar */}
         {nextThresholdData && (
-          <Card className="mb-6 bg-slate-800 border-slate-700">
+          <Card className="mb-6 bg-white/[0.04] border-white/[0.06]">
             <CardContent className="pt-4 pb-4">
               <div className="flex justify-between text-sm mb-2">
                 <span className="text-slate-300">
@@ -206,11 +206,11 @@ export default function HallidayInterview() {
         )}
 
         <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="mb-6">
-          <TabsList className="bg-slate-800 border border-slate-700">
-            <TabsTrigger value="interview" className="data-[state=active]:bg-blue-600 text-white">
+          <TabsList className="bg-white/[0.04] border border-white/[0.06]">
+            <TabsTrigger value="interview" className="data-[state=active]:bg-ether-violet text-white">
               Interview
             </TabsTrigger>
-            <TabsTrigger value="progress" className="data-[state=active]:bg-blue-600 text-white">
+            <TabsTrigger value="progress" className="data-[state=active]:bg-ether-violet text-white">
               <TrendingUp className="h-4 w-4 mr-1" />
               Progress Breakdown
             </TabsTrigger>
@@ -229,8 +229,8 @@ export default function HallidayInterview() {
                     onClick={() => { setSelectedCategory(cat.id); resetConversation(); }}
                     className={`p-3 rounded-lg border text-center transition-all ${
                       isSelected
-                        ? "bg-blue-600 border-blue-500 text-white"
-                        : "bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-700"
+                        ? "bg-ether-violet border-ether-violet/70 text-white"
+                        : "bg-white/[0.04] border-white/[0.06] text-slate-300 hover:bg-white/[0.06]"
                     }`}
                   >
                     <div className="text-xl mb-1">{cat.emoji}</div>
@@ -244,20 +244,20 @@ export default function HallidayInterview() {
 
             {/* Question Card */}
             {questionLoading ? (
-              <Card className="bg-slate-800 border-slate-700">
+              <Card className="bg-white/[0.04] border-white/[0.06]">
                 <CardContent className="pt-12 pb-12 text-center">
-                  <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-blue-400" />
+                  <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-ether-cyan" />
                   <p className="text-slate-400">Loading next question...</p>
                 </CardContent>
               </Card>
             ) : nextQuestion ? (
-              <Card className="bg-slate-800 border-slate-700">
+              <Card className="bg-white/[0.04] border-white/[0.06]">
                 <CardHeader>
                   <div className="flex items-center gap-2 mb-2">
-                    <Badge variant="outline" className="text-slate-400 border-slate-600 text-xs">
+                    <Badge variant="outline" className="text-slate-400 border-white/[0.06] text-xs">
                       {nextQuestion.questionId}
                     </Badge>
-                    <Badge variant="outline" className="text-slate-400 border-slate-600 text-xs">
+                    <Badge variant="outline" className="text-slate-400 border-white/[0.06] text-xs">
                       {CATEGORIES.find((c) => c.id === nextQuestion.category)?.name}
                     </Badge>
                   </div>
@@ -277,7 +277,7 @@ export default function HallidayInterview() {
                         value={response}
                         onChange={(e) => setResponse(e.target.value)}
                         disabled={phase !== "answering"}
-                        className={`min-h-36 pr-12 bg-slate-700 border-slate-600 text-white placeholder:text-slate-500 text-base ${
+                        className={`min-h-36 pr-12 bg-white/[0.04] border-white/[0.06] text-white placeholder:text-slate-500 text-base ${
                           phase !== "answering" ? "opacity-70" : ""
                         }`}
                       />
@@ -313,9 +313,9 @@ export default function HallidayInterview() {
 
                     {/* AI follow-up loading */}
                     {phase === "loading_followup" && (
-                      <div className="flex items-start gap-3 p-4 bg-blue-900/20 border border-blue-800/40 rounded-lg">
-                        <MessageCircle className="h-5 w-5 text-blue-400 mt-0.5 flex-shrink-0" />
-                        <div className="flex items-center gap-2 text-blue-300 text-sm">
+                      <div className="flex items-start gap-3 p-4 bg-ether-violet/10 border border-ether-violet/20 rounded-lg">
+                        <MessageCircle className="h-5 w-5 text-ether-cyan mt-0.5 flex-shrink-0" />
+                        <div className="flex items-center gap-2 text-ether-violet text-sm">
                           <Loader2 className="h-4 w-4 animate-spin" />
                           Thinking of follow-up questions...
                         </div>
@@ -325,9 +325,9 @@ export default function HallidayInterview() {
                     {/* AI follow-up + user's follow-up response */}
                     {(phase === "following_up" || phase === "saving") && followUpText && (
                       <>
-                        <div className="flex items-start gap-3 p-4 bg-blue-900/20 border border-blue-800/40 rounded-lg">
-                          <MessageCircle className="h-5 w-5 text-blue-400 mt-0.5 flex-shrink-0" />
-                          <p className="text-blue-200 text-sm leading-relaxed">{followUpText}</p>
+                        <div className="flex items-start gap-3 p-4 bg-ether-violet/10 border border-ether-violet/20 rounded-lg">
+                          <MessageCircle className="h-5 w-5 text-ether-cyan mt-0.5 flex-shrink-0" />
+                          <p className="text-white text-sm leading-relaxed">{followUpText}</p>
                         </div>
 
                         <div className="relative">
@@ -336,7 +336,7 @@ export default function HallidayInterview() {
                             value={followUpResponse}
                             onChange={(e) => setFollowUpResponse(e.target.value)}
                             disabled={phase === "saving"}
-                            className="min-h-24 pr-12 bg-slate-700 border-slate-600 text-white placeholder:text-slate-500 text-base"
+                            className="min-h-24 pr-12 bg-white/[0.04] border-white/[0.06] text-white placeholder:text-slate-500 text-base"
                           />
                           {phase === "following_up" && (
                             <VoiceInput
@@ -359,7 +359,8 @@ export default function HallidayInterview() {
                       <Button
                         onClick={handleRequestFollowUp}
                         disabled={!response.trim()}
-                        className="flex-1 bg-blue-600 hover:bg-blue-700 text-base py-5"
+                        data-ether-variant="primary"
+                        className="flex-1 bg-ether-violet hover:bg-ether-violet/90 text-base py-5"
                       >
                         Continue
                         <ChevronRight className="ml-2 h-4 w-4" />
@@ -368,7 +369,7 @@ export default function HallidayInterview() {
                         onClick={handleSaveAsIs}
                         disabled={!response.trim()}
                         variant="outline"
-                        className="border-slate-600 text-slate-300 hover:bg-slate-800 hover:text-white py-5"
+                        className="border-white/[0.06] text-slate-300 hover:bg-white/[0.04] py-5"
                       >
                         <Save className="mr-2 h-4 w-4" />
                         Save as is
@@ -380,7 +381,8 @@ export default function HallidayInterview() {
                   {phase === "following_up" && (
                     <Button
                       onClick={handleSaveWithFollowUp}
-                      className="w-full bg-blue-600 hover:bg-blue-700 text-base py-5"
+                      data-ether-variant="primary"
+                      className="w-full bg-ether-violet hover:bg-ether-violet/90 text-base py-5"
                     >
                       Save & Next Question
                       <ChevronRight className="ml-2 h-4 w-4" />
@@ -389,7 +391,7 @@ export default function HallidayInterview() {
 
                   {/* Phase: saving */}
                   {phase === "saving" && (
-                    <Button disabled className="w-full bg-blue-600 text-base py-5 opacity-70">
+                    <Button disabled data-ether-variant="primary" className="w-full bg-ether-violet text-base py-5 opacity-70">
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                       Saving to your Digital Mind...
                     </Button>
@@ -410,7 +412,7 @@ export default function HallidayInterview() {
                 </CardContent>
               </Card>
             ) : (
-              <Card className="bg-slate-800 border-slate-700">
+              <Card className="bg-white/[0.04] border-white/[0.06]">
                 <CardContent className="pt-12 pb-12 text-center">
                   <CheckCircle className="h-12 w-12 text-green-400 mx-auto mb-4" />
                   <h3 className="text-white text-xl font-semibold mb-2">Category Complete!</h3>
@@ -422,7 +424,8 @@ export default function HallidayInterview() {
                       const next = CATEGORIES.find((c) => c.id !== selectedCategory);
                       if (next) setSelectedCategory(next.id);
                     }}
-                    className="bg-blue-600 hover:bg-blue-700"
+                    data-ether-variant="primary"
+                    className="bg-ether-violet hover:bg-ether-violet/90"
                   >
                     Continue in Next Category
                   </Button>
@@ -434,7 +437,7 @@ export default function HallidayInterview() {
           {/* Progress Tab (unchanged) */}
           <TabsContent value="progress">
             <div className="space-y-4">
-              <Card className="bg-slate-800 border-slate-700">
+              <Card className="bg-white/[0.04] border-white/[0.06]">
                 <CardHeader>
                   <CardTitle className="text-white text-lg">Identity Accuracy Thresholds</CardTitle>
                   <CardDescription>Your Digital Mind improves as you cross each threshold</CardDescription>
@@ -459,19 +462,19 @@ export default function HallidayInterview() {
                             achieved
                               ? "bg-green-900/30 border border-green-700"
                               : isCurrent
-                              ? "bg-blue-900/30 border border-blue-700"
-                              : "bg-slate-700/30 border border-slate-600"
+                              ? "bg-ether-violet/10 border border-ether-violet/30"
+                              : "bg-white/[0.04] border border-white/[0.06]"
                           }`}
                         >
                           <div className={`w-3 h-3 rounded-full ${
                             achieved ? "bg-green-400"
-                              : isCurrent ? "bg-blue-400 animate-pulse"
-                              : "bg-slate-500"
+                              : isCurrent ? "bg-ether-violet animate-pulse"
+                              : "bg-white/30"
                           }`} />
                           <div className="flex-1">
                             <div className="flex items-center gap-2">
                               <span className={`font-semibold ${
-                                achieved ? "text-green-300" : isCurrent ? "text-blue-300" : "text-slate-400"
+                                achieved ? "text-green-300" : isCurrent ? "text-ether-violet" : "text-slate-400"
                               }`}>
                                 {threshold.label}
                               </span>
@@ -482,7 +485,7 @@ export default function HallidayInterview() {
                             <p className="text-slate-400 text-sm">{threshold.description}</p>
                           </div>
                           {achieved && <CheckCircle className="h-5 w-5 text-green-400" />}
-                          {isCurrent && <span className="text-blue-400 text-sm font-semibold">Current</span>}
+                          {isCurrent && <span className="text-ether-violet text-sm font-semibold">Current</span>}
                         </div>
                       );
                     })}
@@ -490,7 +493,7 @@ export default function HallidayInterview() {
                 </CardContent>
               </Card>
 
-              <Card className="bg-slate-800 border-slate-700">
+              <Card className="bg-white/[0.04] border-white/[0.06]">
                 <CardHeader>
                   <CardTitle className="text-white text-lg">Category Breakdown</CardTitle>
                   <CardDescription>Weighted contribution to your overall identity accuracy</CardDescription>
@@ -508,7 +511,7 @@ export default function HallidayInterview() {
                             <div className="flex items-center gap-2">
                               <span>{cat.emoji}</span>
                               <span className="text-white font-medium">{cat.name}</span>
-                              <Badge variant="outline" className="text-xs border-slate-600 text-slate-400">
+                              <Badge variant="outline" className="text-xs border-white/[0.06] text-slate-400">
                                 {cat.weight}% weight
                               </Badge>
                             </div>
@@ -522,7 +525,7 @@ export default function HallidayInterview() {
                           <Progress value={Math.round(catProgress * 100)} className="h-2 mb-1" />
                           <div className="text-xs text-slate-500">
                             Weighted contribution:{" "}
-                            <span className="text-blue-400">{(contribution * 100).toFixed(1)}%</span>
+                            <span className="text-ether-cyan">{(contribution * 100).toFixed(1)}%</span>
                           </div>
                         </div>
                       );
@@ -531,7 +534,7 @@ export default function HallidayInterview() {
                 </CardContent>
               </Card>
 
-              <Card className="bg-slate-800 border-slate-700">
+              <Card className="bg-white/[0.04] border-white/[0.06]">
                 <CardContent className="pt-6">
                   <div className="grid grid-cols-3 gap-4 text-center">
                     <div>
@@ -541,7 +544,7 @@ export default function HallidayInterview() {
                       <div className="text-slate-400 text-sm">Questions Answered</div>
                     </div>
                     <div>
-                      <div className="text-3xl font-bold text-blue-400">
+                      <div className="text-3xl font-bold text-ether-cyan">
                         {Math.round(weightedAccuracy * 100)}%
                       </div>
                       <div className="text-slate-400 text-sm">Weighted Accuracy</div>

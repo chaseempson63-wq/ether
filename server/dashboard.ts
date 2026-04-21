@@ -4,8 +4,14 @@ import {
   memoryNodes,
   memoryEdges,
   interviewLevels,
+  interviewQuestions,
 } from "../drizzle/schema";
-import type { MemoryNode, UserAchievement } from "../drizzle/schema";
+import type {
+  MemoryNode,
+  UserAchievement,
+  InterviewLevel,
+  InterviewQuestion,
+} from "../drizzle/schema";
 import {
   ACHIEVEMENTS,
   type AchievementColor,
@@ -210,10 +216,40 @@ function metaForNode(n: MemoryNode): string {
   return `${created.getDate().toString().padStart(2, "0")}/${(created.getMonth() + 1).toString().padStart(2, "0")}`;
 }
 
-function mindVersionFor(memoryCount: number): string {
-  // Simple cosmetic version: 0.01 per memory, rounded to two decimals, capped.
-  const v = Math.min(9.99, memoryCount * 0.01);
-  return v.toFixed(2);
+// Mind version is tied to Halliday interview progression rather than raw
+// memory count — it should reflect depth of self-modeling, not volume.
+//   major = number of completed interview levels (capped at 5, the full
+//           Halliday stack = fully realized mind)
+//   minor = floor(progress × 10) of the currently in-progress level, where
+//           progress = answered questions / total questions for that level
+// Returns "X.Y" (the "v" prefix is added at the render layer).
+function mindVersionFor(
+  levels: ReadonlyArray<InterviewLevel>,
+  questions: ReadonlyArray<InterviewQuestion>,
+): string {
+  if (levels.length === 0) return "0.1";
+
+  const completed = levels.filter((l) => l.status === "completed").length;
+  const inProgress = levels.find((l) => l.status === "in_progress");
+
+  const major = Math.min(5, completed);
+  if (major >= 5) return "5.0";
+
+  let minor = 0;
+  if (inProgress) {
+    const levelQs = questions.filter((q) => q.level === inProgress.level);
+    if (levelQs.length > 0) {
+      const answered = levelQs.filter((q) => q.answer !== null).length;
+      const progress = answered / levelQs.length;
+      minor = Math.min(9, Math.floor(progress * 10));
+    }
+  }
+
+  // Any started state should never read as a flat "X.0" — guarantee v0.1
+  // when there's any level row but no progress yet.
+  if (major === 0 && minor === 0) minor = 1;
+
+  return `${major}.${minor}`;
 }
 
 function heroHeadline(weekDelta: number): string {
@@ -239,7 +275,7 @@ export async function getDashboard(
   const db = await getDb();
   if (!db) throw new Error("Database not available");
 
-  const [nodes, edges, earned, levels] = await Promise.all([
+  const [nodes, edges, earned, levels, questions] = await Promise.all([
     db
       .select()
       .from(memoryNodes)
@@ -254,7 +290,13 @@ export async function getDashboard(
       .select()
       .from(interviewLevels)
       .where(eq(interviewLevels.userId, userId)),
+    db
+      .select()
+      .from(interviewQuestions)
+      .where(eq(interviewQuestions.userId, userId)),
   ]);
+
+  const mindVersion = mindVersionFor(levels, questions);
 
   const stats = deriveStats(nodes);
   const createdAtList = nodes.map((n) => n.createdAt);
@@ -383,7 +425,7 @@ export async function getDashboard(
 
   return {
     user: {
-      mindVersion: mindVersionFor(stats.memoryCount),
+      mindVersion,
     },
     stats: {
       memories: {
@@ -457,7 +499,7 @@ export async function getDashboard(
       unlocks: [],
     },
     copy: {
-      heroEyebrow: `Mind v${mindVersionFor(stats.memoryCount)}`,
+      heroEyebrow: `Mind v${mindVersion}`,
       heroHeadline: heroHeadline(weekDelta.memories),
       heroBody: heroBody(weekDelta.memories),
     },

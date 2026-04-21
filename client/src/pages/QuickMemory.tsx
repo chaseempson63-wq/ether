@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { cn } from "@/lib/utils";
@@ -18,6 +18,11 @@ import {
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
 import { VoiceInput, useVoiceRecognition } from "@/components/VoiceInput";
+import {
+  EtherOrb,
+  isEtherOrbSupported,
+  type EtherOrbHandle,
+} from "@/components/EtherOrb";
 import { useCompanion } from "@/companion";
 import {
   AlertDialog,
@@ -60,6 +65,12 @@ export default function QuickMemory() {
   const [searchQuery, setSearchQuery] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
+  const orbRef = useRef<EtherOrbHandle>(null);
+  const orbSupportedRef = useRef<boolean | null>(null);
+  if (orbSupportedRef.current === null) {
+    orbSupportedRef.current = isEtherOrbSupported();
+  }
+  const orbSupported = orbSupportedRef.current;
 
   const utils = trpc.useUtils();
   const memoriesQuery = trpc.memory.list.useQuery();
@@ -105,6 +116,66 @@ export default function QuickMemory() {
     if (!q) return quickMemories;
     return quickMemories.filter((m) => m.content.toLowerCase().includes(q));
   }, [quickMemories, searchQuery]);
+
+  // Drive the orb's amp uniform from real mic amplitude while recording.
+  // Separate getUserMedia stream from SpeechRecognition — browsers share the
+  // underlying device, so the second request is seamless after permission.
+  useEffect(() => {
+    if (!bigRecording || !orbSupported) {
+      orbRef.current?.update({ amp: 1 });
+      return;
+    }
+    let cancelled = false;
+    let stream: MediaStream | null = null;
+    let ctx: AudioContext | null = null;
+    let raf = 0;
+
+    (async () => {
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        if (cancelled) {
+          stream.getTracks().forEach((t) => t.stop());
+          return;
+        }
+        const AudioCtor =
+          window.AudioContext ||
+          (window as unknown as { webkitAudioContext: typeof AudioContext })
+            .webkitAudioContext;
+        ctx = new AudioCtor();
+        const src = ctx.createMediaStreamSource(stream);
+        const analyser = ctx.createAnalyser();
+        analyser.fftSize = 512;
+        src.connect(analyser);
+        const data = new Uint8Array(analyser.frequencyBinCount);
+        let smoothed = 1;
+        const loop = () => {
+          if (cancelled) return;
+          analyser.getByteTimeDomainData(data);
+          let sum = 0;
+          for (let i = 0; i < data.length; i++) {
+            const v = (data[i] - 128) / 128;
+            sum += v * v;
+          }
+          const rms = Math.sqrt(sum / data.length);
+          const target = 1 + Math.min(1.8, rms * 12);
+          smoothed += (target - smoothed) * 0.2;
+          orbRef.current?.update({ amp: smoothed });
+          raf = requestAnimationFrame(loop);
+        };
+        loop();
+      } catch (err) {
+        console.warn("EtherOrb amp analyser unavailable", err);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+      cancelAnimationFrame(raf);
+      ctx?.close().catch(() => {});
+      stream?.getTracks().forEach((t) => t.stop());
+      orbRef.current?.update({ amp: 1 });
+    };
+  }, [bigRecording, orbSupported]);
 
   const handleSave = async () => {
     if (!transcript.trim() || isSaving) return;
@@ -188,7 +259,7 @@ export default function QuickMemory() {
         {/* Big mic button */}
         <div className="flex flex-col items-center mb-8">
           <div className="relative inline-flex">
-            {bigRecording && (
+            {bigRecording && !orbSupported && (
               <span
                 className="absolute inset-0 rounded-full bg-red-500/40 animate-ping pointer-events-none"
                 aria-hidden="true"
@@ -202,14 +273,31 @@ export default function QuickMemory() {
               aria-label={bigBtnTooltip}
               aria-pressed={bigRecording}
               className={cn(
-                "relative z-10 h-24 w-24 rounded-full flex items-center justify-center transition-all shadow-lg",
-                bigRecording
-                  ? "bg-red-600 hover:bg-red-700 text-white scale-105"
-                  : "bg-blue-600 hover:bg-blue-700 text-white",
+                "relative z-10 rounded-full flex items-center justify-center transition-all",
+                orbSupported
+                  ? cn(
+                      "h-32 w-32 bg-transparent hover:scale-[1.03] active:scale-95",
+                      bigRecording && "scale-105"
+                    )
+                  : cn(
+                      "h-24 w-24 shadow-lg",
+                      bigRecording
+                        ? "bg-red-600 hover:bg-red-700 text-white scale-105"
+                        : "bg-blue-600 hover:bg-blue-700 text-white"
+                    ),
                 !bigSupported && "opacity-40 cursor-not-allowed"
               )}
             >
-              {bigRecording ? (
+              {orbSupported ? (
+                <EtherOrb
+                  ref={orbRef}
+                  size={128}
+                  speed={bigRecording ? 1.1 : 0.6}
+                  hue={bigRecording ? 0.0 : 0.29}
+                  glow={bigRecording ? 1.15 : 0.95}
+                  amp={bigRecording ? 1.4 : 1}
+                />
+              ) : bigRecording ? (
                 <Square className="h-10 w-10 fill-current" />
               ) : (
                 <Mic className="h-10 w-10" />

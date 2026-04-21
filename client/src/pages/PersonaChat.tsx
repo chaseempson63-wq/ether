@@ -225,13 +225,13 @@ export default function PersonaChat() {
   })();
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-800 p-6">
+    <div className="min-h-screen bg-ether-bg p-6">
       <div className="max-w-7xl mx-auto">
         <Button
           variant="ghost"
           size="sm"
           onClick={() => setLocation("/")}
-          className="mb-4 text-slate-400 hover:text-white hover:bg-slate-800"
+          className="mb-4 text-slate-400 hover:text-white hover:bg-white/[0.04]"
         >
           <ArrowLeft className="h-4 w-4 mr-2" />
           Home
@@ -241,16 +241,16 @@ export default function PersonaChat() {
           {/* Sidebar */}
           <aside
             className={cn(
-              "bg-slate-800 border border-slate-700 rounded-lg flex flex-col transition-all duration-200 overflow-hidden",
+              "bg-white/[0.04] border border-white/[0.06] rounded-lg flex flex-col transition-all duration-200 overflow-hidden",
               sidebarOpen ? "w-72" : "w-16"
             )}
           >
-            <div className="p-3 border-b border-slate-700 flex items-center gap-2">
+            <div className="p-3 border-b border-white/[0.06] flex items-center gap-2">
               <Button
                 variant="ghost"
                 size="icon"
                 onClick={() => setSidebarOpen((o) => !o)}
-                className="text-slate-400 hover:text-white hover:bg-slate-700 flex-shrink-0"
+                className="text-slate-400 hover:text-white hover:bg-white/[0.04] flex-shrink-0"
                 aria-label={sidebarOpen ? "Collapse sidebar" : "Expand sidebar"}
               >
                 <PanelLeft className="h-4 w-4" />
@@ -258,7 +258,8 @@ export default function PersonaChat() {
               {sidebarOpen ? (
                 <Button
                   onClick={handleNewChat}
-                  className="flex-1 bg-blue-600 hover:bg-blue-700"
+                  data-ether-variant="primary"
+                  className="flex-1 bg-ether-violet hover:bg-ether-violet/90"
                   size="sm"
                 >
                   <Plus className="h-4 w-4 mr-2" />
@@ -269,7 +270,7 @@ export default function PersonaChat() {
                   variant="ghost"
                   size="icon"
                   onClick={handleNewChat}
-                  className="text-slate-400 hover:text-white hover:bg-slate-700 flex-shrink-0"
+                  className="text-slate-400 hover:text-white hover:bg-white/[0.04] flex-shrink-0"
                   aria-label="New chat"
                 >
                   <Plus className="h-4 w-4" />
@@ -304,10 +305,10 @@ export default function PersonaChat() {
           </aside>
 
           {/* Main chat area */}
-          <main className="flex-1 bg-slate-800 border border-slate-700 rounded-lg flex flex-col overflow-hidden">
-            <header className="p-4 border-b border-slate-700">
+          <main className="flex-1 bg-white/[0.04] border border-white/[0.06] rounded-lg flex flex-col overflow-hidden">
+            <header className="p-4 border-b border-white/[0.06]">
               <div className="flex items-center gap-3">
-                <MessageSquare className="w-6 h-6 text-blue-400" />
+                <MessageSquare className="w-6 h-6 text-ether-cyan" />
                 <h1 className="text-2xl font-bold text-white truncate">
                   {currentTitle}
                 </h1>
@@ -339,14 +340,14 @@ export default function PersonaChat() {
               <div ref={messagesEndRef} />
             </div>
 
-            <div className="border-t border-slate-700 p-4 bg-slate-900/50">
+            <div className="border-t border-white/[0.06] p-4 bg-ether-bg/50">
               <form onSubmit={handleSendMessage} className="flex gap-2">
                 <Input
                   placeholder="Ask your Digital Mind..."
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   disabled={isLoading}
-                  className="flex-1 bg-slate-700 border-slate-600 text-white placeholder:text-slate-500"
+                  className="flex-1 bg-white/[0.04] border-white/[0.06] text-white placeholder:text-slate-500"
                 />
                 <VoiceInput
                   disabled={isLoading}
@@ -358,7 +359,8 @@ export default function PersonaChat() {
                   type="submit"
                   disabled={isLoading || !input.trim()}
                   size="icon"
-                  className="bg-blue-600 hover:bg-blue-700"
+                  data-ether-variant="primary"
+                  className="bg-ether-violet hover:bg-ether-violet/90"
                 >
                   <Send className="h-4 w-4" />
                 </Button>
@@ -372,7 +374,7 @@ export default function PersonaChat() {
         open={pendingDeleteId !== null}
         onOpenChange={(o) => !o && setPendingDeleteId(null)}
       >
-        <AlertDialogContent className="bg-slate-800 border-slate-700 text-white">
+        <AlertDialogContent className="bg-white/[0.06] border-white/[0.06] text-white backdrop-blur-xl">
           <AlertDialogHeader>
             <AlertDialogTitle className="text-white">
               Delete this conversation?
@@ -383,12 +385,13 @@ export default function PersonaChat() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel className="bg-slate-700 border-slate-600 text-slate-200 hover:bg-slate-600 hover:text-white">
+            <AlertDialogCancel className="bg-white/[0.04] border-white/[0.06] text-white hover:bg-white/[0.06]">
               Cancel
             </AlertDialogCancel>
             <AlertDialogAction
               onClick={handleConfirmDelete}
-              className="bg-red-600 hover:bg-red-700 text-white"
+              data-ether-variant="destructive"
+              className="bg-destructive hover:bg-destructive/90 text-white"
             >
               Delete
             </AlertDialogAction>
@@ -447,7 +450,7 @@ function ConversationRow({
 
   if (isEditing) {
     return (
-      <div className="rounded-md px-3 py-2 bg-slate-700 flex items-center gap-1.5">
+      <div className="rounded-md px-3 py-2 bg-white/[0.04] flex items-center gap-1.5">
         <input
           ref={inputRef}
           value={editValue}
@@ -458,7 +461,7 @@ function ConversationRow({
           }}
           onBlur={commitRename}
           onClick={(e) => e.stopPropagation()}
-          className="flex-1 min-w-0 bg-slate-600 border border-slate-500 rounded px-2 py-1 text-sm text-white outline-none focus:border-blue-500"
+          className="flex-1 min-w-0 bg-white/[0.04] border border-white/[0.06] rounded px-2 py-1 text-sm text-white outline-none focus:border-ether-violet"
           autoFocus
         />
         <button
@@ -484,7 +487,7 @@ function ConversationRow({
       onClick={onSelect}
       className={cn(
         "group rounded-md px-3 py-2 cursor-pointer transition flex items-start gap-2",
-        isActive ? "bg-slate-700" : "hover:bg-slate-700/50"
+        isActive ? "bg-white/[0.06]" : "hover:bg-white/[0.04]"
       )}
     >
       <div className="flex-1 min-w-0">
@@ -495,7 +498,7 @@ function ConversationRow({
         <button
           type="button"
           onClick={startEditing}
-          className="text-slate-500 hover:text-blue-400 transition p-1"
+          className="text-slate-500 hover:text-ether-cyan transition p-1"
           aria-label="Rename conversation"
         >
           <Pencil className="h-3.5 w-3.5" />
@@ -521,8 +524,8 @@ function MessageBubble({ message }: { message: Message }) {
         className={cn(
           "max-w-xl px-4 py-3 rounded-lg",
           isUser
-            ? "bg-blue-600 text-white"
-            : "bg-slate-800 border border-slate-700 text-slate-100"
+            ? "bg-ether-violet text-white"
+            : "bg-white/[0.04] border border-white/[0.06] text-white"
         )}
       >
         <Streamdown>{message.content}</Streamdown>
@@ -540,10 +543,10 @@ function MessageBubble({ message }: { message: Message }) {
 function TypingIndicator() {
   return (
     <div className="flex justify-start">
-      <div className="bg-slate-800 border border-slate-700 rounded-lg px-4 py-3 flex gap-1.5 items-center">
-        <span className="w-2 h-2 bg-slate-400 rounded-full animate-pulse" style={{ animationDelay: "0ms" }} />
-        <span className="w-2 h-2 bg-slate-400 rounded-full animate-pulse" style={{ animationDelay: "150ms" }} />
-        <span className="w-2 h-2 bg-slate-400 rounded-full animate-pulse" style={{ animationDelay: "300ms" }} />
+      <div className="bg-white/[0.04] border border-white/[0.06] rounded-lg px-4 py-3 flex gap-1.5 items-center">
+        <span className="w-2 h-2 bg-white/40 rounded-full animate-pulse" style={{ animationDelay: "0ms" }} />
+        <span className="w-2 h-2 bg-white/40 rounded-full animate-pulse" style={{ animationDelay: "150ms" }} />
+        <span className="w-2 h-2 bg-white/40 rounded-full animate-pulse" style={{ animationDelay: "300ms" }} />
       </div>
     </div>
   );

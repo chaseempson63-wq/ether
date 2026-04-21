@@ -1,6 +1,7 @@
 import { useState, useCallback, useMemo, useRef, useEffect } from "react";
 import { useLocation } from "wouter";
 import ForceGraph2D, { type ForceGraphMethods } from "react-force-graph-2d";
+import { forceX, forceY } from "d3-force";
 import { trpc } from "@/lib/trpc";
 import { useCompanion } from "@/companion";
 import { VoiceInput } from "@/components/VoiceInput";
@@ -344,23 +345,28 @@ export default function MindMap() {
     fg.zoom(naturalFit * ZOOM_IN_MULTIPLIER, 500);
   }, []);
 
-  // ─── Drag-pin architecture (2-hop free, ≥3-hop pinned) ───
+  // ─── Drag soft-anchor architecture (BFS-weighted spring restoration) ───
   //
-  // Library default: during drag, alphaTarget=0.3 keeps the engine ticking
-  // continuously. Without intervention, every node in the graph drifts under
-  // forces → whole-graph drift during drag, whole-graph snap on release.
+  // Prior approach (binary fx/fy pinning at BFS ≥ 3-hop) severed charge-force
+  // global cascade: pinned nodes cannot move under ANY force, so the N-body
+  // repulsion ripple that makes the graph feel connected dies at the 2-hop
+  // boundary. Distant nodes sat visibly stagnant during drag.
   //
-  // Architectural fix: BFS from the dragged node, pin everything at hop
-  // distance ≥ 3. The dragged node plus its 1-hop and 2-hop neighbors stay
-  // free. Cascade motion propagates naturally through the link force:
-  //   - Dragged node moves X (cursor-driven)
-  //   - 1-hop neighbors: pulled by link spring → move some fraction of X
-  //   - 2-hop neighbors: pulled by the 1-hop node they link to → move a
-  //     smaller fraction still (natural spring decay through chains)
-  //   - 3+ hop nodes: physically pinned, geometrically cannot drift
+  // New architecture: every node remains un-pinned (fx/fy stays undefined).
+  // Instead we add two custom forces — forceX and forceY with per-node
+  // strength — that pull each node back toward its drag-start position. The
+  // pull strength scales with BFS distance from the dragged node:
   //
-  // Feels alive and connected (2-3 hops of visible response) without
-  // allowing unbounded whole-graph motion.
+  //   distance 0-1: strength 0     — fully free (full link-cascade response)
+  //   distance 2:   strength 0.08  — barely pulled back, visible response
+  //   distance 3:   strength 0.25  — moderate spring, still shimmers
+  //   distance 4:   strength 0.5   — strong spring, subtle ripple allowed
+  //   distance 5+:  strength 0.85  — near-anchor, charge-driven shimmer only
+  //   ∞ (disconnected components): same as 5+
+  //
+  // Charge force reaches every node (none are fx-pinned), so global ripple
+  // is restored. Drift is bounded because soft-anchor pull grows quadratically
+  // with BFS distance.
 
   // Adjacency index built once per data-set change. Maps nodeId → Set of
   // 1-hop neighbor ids. Cheap (O(edges)) and memoized so the lookup during
@@ -379,56 +385,93 @@ export default function MindMap() {
     return map;
   }, [graphQuery.data]);
 
-  // Tracks which node IDs we pinned during the current drag, so handleNodeDragEnd
-  // unpins exactly those (not nodes that were pinned for other reasons).
-  const draggedPinSetRef = useRef<Set<string>>(new Set());
+  // Flag: soft-anchor forces are currently active (set on first drag tick,
+  // cleared on drag end). Guards against double-registration if handleNodeDrag
+  // fires multiple times per drag.
+  const dragAnchorActiveRef = useRef(false);
+
+  // Map BFS distance → spring strength back toward drag-start position.
+  const distanceToAnchorStrength = (d: number): number => {
+    if (d <= 1) return 0;
+    if (d === 2) return 0.08;
+    if (d === 3) return 0.25;
+    if (d === 4) return 0.5;
+    return 0.85; // 5+ hops, or Infinity (disconnected)
+  };
 
   const handleNodeDrag = useCallback(
     (node: any) => {
-      // Only act on first drag tick (set is empty between drags).
-      if (draggedPinSetRef.current.size > 0) return;
-      // BFS up to depth 2 from the dragged node. Everything reached stays
-      // free; everything else gets pinned.
-      const keepFreeIds = new Set<string>([node.id]);
+      if (dragAnchorActiveRef.current) return;
+      const fg = graphRef.current;
+      if (!fg) return;
+
+      // BFS from dragged node to EVERY reachable node, record hop distance.
+      const distances = new Map<string, number>();
+      distances.set(node.id, 0);
       let frontier: string[] = [node.id];
-      for (let depth = 1; depth <= 2; depth++) {
+      let depth = 0;
+      while (frontier.length > 0) {
+        depth++;
         const nextFrontier: string[] = [];
         for (const id of frontier) {
-          const neighbors = neighborMap.get(id);
-          if (!neighbors) continue;
-          neighbors.forEach((neighborId) => {
-            if (!keepFreeIds.has(neighborId)) {
-              keepFreeIds.add(neighborId);
-              nextFrontier.push(neighborId);
+          const nbrs = neighborMap.get(id);
+          if (!nbrs) continue;
+          nbrs.forEach((nid) => {
+            if (!distances.has(nid)) {
+              distances.set(nid, depth);
+              nextFrontier.push(nid);
             }
           });
         }
         frontier = nextFrontier;
       }
+
+      // Stamp each node with its drag-start position and distance-weighted
+      // anchor strength. forceX/forceY read these per tick.
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       for (const n of filteredData.nodes as any[]) {
-        if (!keepFreeIds.has(n.id)) {
-          n.fx = n.x;
-          n.fy = n.y;
-          draggedPinSetRef.current.add(n.id);
-        }
+        const d = distances.get(n.id) ?? Infinity;
+        n.__anchorX = n.x;
+        n.__anchorY = n.y;
+        n.__anchorStrength = distanceToAnchorStrength(d);
       }
+
+      // Register soft-anchor forces. Accessor functions read node.__anchor*
+      // each time d3-force initializes the force — re-registering reads the
+      // fresh values we just stamped.
+      fg.d3Force(
+        "dragAnchorX",
+        forceX((n: any) => n.__anchorX ?? 0).strength(
+          (n: any) => n.__anchorStrength ?? 0
+        ) as any
+      );
+      fg.d3Force(
+        "dragAnchorY",
+        forceY((n: any) => n.__anchorY ?? 0).strength(
+          (n: any) => n.__anchorStrength ?? 0
+        ) as any
+      );
+
+      dragAnchorActiveRef.current = true;
     },
     [filteredData, neighborMap]
   );
 
   const handleNodeDragEnd = useCallback(
     (_node: any) => {
-      const pinned = draggedPinSetRef.current;
-      if (pinned.size === 0) return;
+      if (!dragAnchorActiveRef.current) return;
+      const fg = graphRef.current;
+      if (fg) {
+        fg.d3Force("dragAnchorX", null);
+        fg.d3Force("dragAnchorY", null);
+      }
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       for (const n of filteredData.nodes as any[]) {
-        if (pinned.has(n.id)) {
-          n.fx = undefined;
-          n.fy = undefined;
-        }
+        delete n.__anchorX;
+        delete n.__anchorY;
+        delete n.__anchorStrength;
       }
-      pinned.clear();
+      dragAnchorActiveRef.current = false;
     },
     [filteredData]
   );

@@ -235,7 +235,7 @@ export default function BeneficiaryManagement() {
           <CardHeader>
             <CardTitle className="text-white">Your Beneficiaries</CardTitle>
             <CardDescription className="text-slate-400">
-              {beneficiariesQuery.data?.length || 0} beneficiary{beneficiariesQuery.data?.length !== 1 ? "ies" : ""} configured
+              {beneficiariesQuery.data?.length || 0} beneficiar{(beneficiariesQuery.data?.length ?? 0) !== 1 ? "ies" : "y"} configured
             </CardDescription>
           </CardHeader>
           <CardContent>

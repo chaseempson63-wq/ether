@@ -243,6 +243,10 @@ html.day {
   --ether-ink0: #0A0E1F;
 }
 
+body {
+  background-color: var(--ether-bg0);
+}
+
 html.day body {
   background: #F4F5FA;
   color: #0A0E1F;

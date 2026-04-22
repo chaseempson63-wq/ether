@@ -553,20 +553,20 @@ export function NextStepCTA({
   onClick: () => void;
 }) {
   return (
-    <div className="relative rounded-2xl overflow-hidden border border-white/10 p-6 md:p-8">
+    <div className="relative rounded-2xl overflow-hidden border border-white/10 p-6 md:p-8" style={{ background: '#0B1020' }}>
       <div
         aria-hidden
         className="absolute inset-0 opacity-90 pointer-events-none"
         style={{
           background:
-            "radial-gradient(1100px 500px at 0% 0%, color-mix(in srgb, var(--ether-violet) 28%, transparent), transparent 60%), radial-gradient(800px 400px at 100% 100%, color-mix(in srgb, var(--ether-cyan) 18%, transparent), transparent 60%), #0B1020",
+            "radial-gradient(1100px 500px at 0% 0%, color-mix(in srgb, var(--ether-violet) 28%, transparent), transparent 60%), radial-gradient(800px 400px at 100% 100%, color-mix(in srgb, var(--ether-cyan) 18%, transparent), transparent 60%)",
         }}
       />
       <div className="relative">
         <div className="text-[11px] tracking-[0.22em] text-[var(--ether-cyan)] uppercase mb-3">
           {eyebrow}
         </div>
-        <h3 className="text-2xl md:text-3xl font-semibold text-white mb-2 font-[Space_Grotesk,system-ui,sans-serif] leading-tight">
+        <h3 data-keep-white className="text-2xl md:text-3xl font-semibold text-white mb-2 font-[Space_Grotesk,system-ui,sans-serif] leading-tight">
           {title}
         </h3>
         <p className="text-slate-300 max-w-2xl mb-6">{subtitle}</p>

@@ -99,6 +99,7 @@ const NAV: NavItem[] = [
     href: "/beneficiaries",
     icon: Users,
     tone: "gold",
+    locked: true,
   },
 ];
 

@@ -94,6 +94,7 @@ export default function Onboarding() {
   const inputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
+  const utils = trpc.useUtils();
   const submitStep = trpc.onboarding.submitStep.useMutation();
   const completeOnboarding = trpc.onboarding.complete.useMutation();
 
@@ -118,11 +119,17 @@ export default function Onboarding() {
 
   // ─── Handlers ───
 
-  const handleIntentChoice = (choice: "build" | "capture") => {
+  const handleIntentChoice = async (choice: "build" | "capture") => {
     if (choice === "capture") {
-      completeOnboarding.mutate(undefined, {
-        onSuccess: () => setLocation("/"),
-      });
+      try {
+        await completeOnboarding.mutateAsync();
+        // Must invalidate BEFORE navigating, otherwise AuthGuard reads the
+        // stale `onboardingComplete: false` cache and bounces back here.
+        await utils.onboarding.status.invalidate();
+        setLocation("/");
+      } catch (err) {
+        console.error("[onboarding] complete failed:", err);
+      }
       return;
     }
     transition(() => setPhase("steps"));
@@ -160,10 +167,16 @@ export default function Onboarding() {
     });
   };
 
-  const handleRevealCTA = (destination: string) => {
-    completeOnboarding.mutate(undefined, {
-      onSuccess: () => setLocation(destination),
-    });
+  const handleRevealCTA = async (destination: string) => {
+    try {
+      await completeOnboarding.mutateAsync();
+      // Same reason as handleIntentChoice — invalidate first, then navigate,
+      // or AuthGuard's stale cache will bounce the user back to /onboarding.
+      await utils.onboarding.status.invalidate();
+      setLocation(destination);
+    } catch (err) {
+      console.error("[onboarding] complete failed:", err);
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {

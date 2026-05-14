@@ -5,14 +5,20 @@ import { trpc } from "@/lib/trpc";
 import { useCompanion } from "./CompanionProvider";
 
 export function EtherAvatar() {
-  const [, setLocation] = useLocation();
+  const [location, setLocation] = useLocation();
   const { comment, dismiss, enabled } = useCompanion();
   const [expanded, setExpanded] = useState(false);
   const [seen, setSeen] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
 
+  // Onboarding is a single-task screen — the avatar's bottom-right nudge
+  // panel was overlapping (and on mobile, swallowing taps for) the
+  // "Just start capturing" intent card. Suppress it entirely here.
+  const suppressOnRoute = location === "/onboarding";
+
   const nudgeQuery = trpc.home.nudge.useQuery(undefined, {
     staleTime: 5 * 60_000,
+    enabled: !suppressOnRoute,
   });
 
   const nudge = nudgeQuery.data;
@@ -80,6 +86,10 @@ export function EtherAvatar() {
   // floating button, no auto-nudges. State persists in localStorage so it
   // stays off across navigations.
   if (!enabled) return null;
+
+  // Don't render on /onboarding — the nudge panel was visually overlapping
+  // and intercepting taps on the intent-screen CTAs.
+  if (suppressOnRoute) return null;
 
   return (
     <div className="fixed bottom-6 right-6 z-[1000] font-sora" ref={panelRef}>
